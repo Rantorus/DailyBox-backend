@@ -39,3 +39,23 @@ export const validateLogin = (req, res, next) => {
     }
     next();
 };
+
+// ==========================================
+// CHAPTER VALIDASYONU
+// ==========================================
+const chapterScheme = Joi.object({
+    title: Joi.string().min(2).max(100).required(), // Başlık zorunlu ve en az 2 karakter olmalı
+    description: Joi.string().max(500).optional(),
+    coverImage: Joi.string().uri().optional()
+});
+
+export const validateChapter = (req, res, next) => {
+    const { error } = chapterScheme.validate(req.body);
+    if (error) {
+        return res.status(400).json({
+            status: 400,
+            message: error.details[0].message, // "title is required" gibi net mesajlar dönecek
+        });
+    }
+    next();
+};

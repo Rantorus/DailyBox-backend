@@ -5,6 +5,7 @@ import pool from "./config/db.js";
 
 import userRoutes from "./routes/userRoutes.js"
 import contactRoutes from "./routes/contactRoutes.js"
+import chapterRoutes from "./routes/chapterRoutes.js" // Chapter rotamızı ekledik
 import errorHandling from "./middlewares/errorHandler.js";
 import createTables from "./data/createTables.js";
 
@@ -19,8 +20,8 @@ app.use(cors());
 
 // 2. KATMAN: Rotalar (İşlemlerin yapıldığı yer)
 app.use("/api/users", userRoutes);
-app.use("/api/chapters", contactRoutes);
-
+app.use("/api/chapters", chapterRoutes);
+app.use("/api/contacts", contactRoutes);
 
 // 3. KATMAN: Güvenlik Ağı 
 app.use(errorHandling);
