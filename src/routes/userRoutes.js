@@ -1,16 +1,24 @@
 import express from "express";
-import { createUser, deleteUser, getAllUsers, getUserById, updateUser } from "../controllers/userControllers.js";
-import validateUser from "../middlewares/inputValidator.js";
+
+import { createUser, deleteUser, getAllUsers, getUserById, updateUser, registerUser, loginUser, currentUser } from "../controllers/userControllers.js";
+import { validateUser, validateLogin } from "../middlewares/inputValidator.js";
 
 const router = express.Router();
 
-// Ana rotalarımız
-router.post("/user/", validateUser, createUser);
-router.get("/user/", getAllUsers);
+// ===================================
+// Auth (Kayıt/Giriş) Rotaları (Videodaki kısım)
+// ===================================
+router.post("/register", validateUser, registerUser);
+router.post("/login", validateLogin, loginUser);
+router.get("/current", currentUser);
 
-// ID parametresi alan rotalarımız
-router.get("/user/:id", getUserById);
-router.put("/user/:id", validateUser, updateUser);
-router.delete("/user/:id", deleteUser);
+// ===================================
+// Klasik CRUD Rotalarımız (Zaten sende olan kısım)
+// ===================================
+router.post("/", validateUser, createUser);
+router.get("/", getAllUsers);
+router.get("/:id", getUserById);
+router.put("/:id", validateUser, updateUser);
+router.delete("/:id", deleteUser);
 
 export default router;

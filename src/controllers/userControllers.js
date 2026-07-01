@@ -8,6 +8,24 @@ const handleResponse = (res, status, message, data = null) => {
     });
 };
 
+// Yeni bir kullanıcı kaydetme (Register)
+export const registerUser = async (req, res) => {
+    // Videoda ilerledikçe burayı dolduracaksın (Şifre hashleme, DB'ye kaydetme)
+    res.json({ message: "Register the user" });
+};
+
+// Kullanıcı girişi (Login)
+export const loginUser = async (req, res) => {
+    // Videoda ilerledikçe burayı dolduracaksın (Şifre kontrolü, JWT Token üretme)
+    res.json({ message: "Login user" });
+};
+
+// Şu an giriş yapmış olan kullanıcının bilgilerini getirme (Current)
+export const currentUser = async (req, res) => {
+    // Token doğrulandıktan sonra kullanıcının kendi bilgilerini döneceksin
+    res.json({ message: "Current user information" });
+};
+
 export const createUser = async (req, res, next) => {
     try {
         // Artık req.body içindeki tüm veriyi (fullName, email, password, stats vb.) tek paket olarak yolluyoruz
@@ -41,7 +59,7 @@ export const updateUser = async (req, res, next) => {
     try {
         // req.body paketini doğrudan yolluyoruz
         const updatedUser = await updateUserService(req.params.id, req.body);
-        
+
         // Düzeltme: (!user) yerine (!updatedUser) kullanıldı
         if (!updatedUser) return handleResponse(res, 404, "User not found");
         handleResponse(res, 200, "User updated successfully", updatedUser);
@@ -53,7 +71,7 @@ export const updateUser = async (req, res, next) => {
 export const deleteUser = async (req, res, next) => {
     try {
         const deletedUser = await deleteUserService(req.params.id);
-        
+
         // Düzeltme: (!user) yerine (!deletedUser) kullanıldı
         if (!deletedUser) return handleResponse(res, 404, "User not found");
         handleResponse(res, 200, "User deleted successfully", deletedUser);

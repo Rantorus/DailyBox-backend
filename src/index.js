@@ -5,7 +5,7 @@ import pool from "./config/db.js";
 
 import userRoutes from "./routes/userRoutes.js"
 import errorHandling from "./middlewares/errorHandler.js";
-import createUserTable from "./data/createUserTable.js";
+import createTables from "./data/createTables.js";
 
 dotenv.config();
 
@@ -17,14 +17,14 @@ app.use(express.json());
 app.use(cors());
 
 // 2. KATMAN: Rotalar (İşlemlerin yapıldığı yer)
-app.use("/api", userRoutes); 
+app.use("/api/users", userRoutes); 
 
 
 // 3. KATMAN: Güvenlik Ağı 
 app.use(errorHandling);
 
-//create user table before starting
-createUserTable();
+// Create all tables before starting
+createTables();
 
 // TESTING DB Roması (Burası da bir rota olduğu için hata yönetiminden yukarıda kalmalı)
 app.get("/", async (req, res, next) => { // Hata fırlatabilmesi için 'next' parametresini ekledik

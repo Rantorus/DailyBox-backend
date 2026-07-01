@@ -1,5 +1,6 @@
 import Joi from "joi";
 
+// Kayıt (Register) ve normal User oluşturma için schema
 const userScheme = Joi.object({
     fullName: Joi.string().min(3).max(150).required(),
     email: Joi.string().email().required(),
@@ -11,7 +12,13 @@ const userScheme = Joi.object({
     isActive: Joi.boolean().optional()
 });
 
-const validateUser = (req, res, next) => {
+// Sadece Giriş (Login) işlemi için schema
+const loginScheme = Joi.object({
+    email: Joi.string().email().required(),
+    password: Joi.string().required()
+});
+
+export const validateUser = (req, res, next) => {
     const { error } = userScheme.validate(req.body);
     if (error) {
         return res.status(400).json({
@@ -22,4 +29,13 @@ const validateUser = (req, res, next) => {
     next();
 };
 
-export default validateUser;
+export const validateLogin = (req, res, next) => {
+    const { error } = loginScheme.validate(req.body);
+    if (error) {
+        return res.status(400).json({
+            status: 400,
+            message: error.details[0].message,
+        });
+    }
+    next();
+};
