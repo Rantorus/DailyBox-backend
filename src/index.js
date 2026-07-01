@@ -19,7 +19,7 @@ app.use(cors());
 
 // 2. KATMAN: Rotalar (İşlemlerin yapıldığı yer)
 app.use("/api/users", userRoutes);
-app.use("/api/contacts", contactRoutes);
+app.use("/api/chapters", contactRoutes);
 
 
 // 3. KATMAN: Güvenlik Ağı 
