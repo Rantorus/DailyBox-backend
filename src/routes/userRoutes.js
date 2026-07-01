@@ -2,6 +2,7 @@ import express from "express";
 
 import { createUser, deleteUser, getAllUsers, getUserById, updateUser, registerUser, loginUser, currentUser } from "../controllers/userControllers.js";
 import { validateUser, validateLogin } from "../middlewares/inputValidator.js";
+import { validateToken } from "../middlewares/validateTokenHandler.js";
 
 const router = express.Router();
 
@@ -10,7 +11,7 @@ const router = express.Router();
 // ===================================
 router.post("/register", validateUser, registerUser);
 router.post("/login", validateLogin, loginUser);
-router.get("/current", currentUser);
+router.get("/current", validateToken, currentUser);
 
 // ===================================
 // Klasik CRUD Rotalarımız (Zaten sende olan kısım)

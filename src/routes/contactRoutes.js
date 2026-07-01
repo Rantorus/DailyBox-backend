@@ -1,10 +1,27 @@
-const express = require("express");
+import express from "express";
+import { validateToken } from "../middlewares/validateTokenHandler.js";
+import {
+    getContacts,
+    createContact,
+    updateContact,
+    deleteContact
+} from "../controllers/contactControllers.js";
+
 const router = express.Router();
-const { getContacts, createContact, getContact, updateContact, deleteContact } = require("../controllers/contactController");
 
-router.route("/").get(getContacts).post(createContact);
+// ===================================
+// GÜVENLİK DUVARI (MIDDLEWARE)
+// ===================================
+// Bu satır sayesinde, altındaki hiçbir rotaya Token'ı olmayan giremez.
+// İçeri giren kişinin bilgileri (req.user) artık bizim elimizdedir.
+router.use(validateToken);
 
-router.route("/:id").get(getContact).put(updateContact).delete(deleteContact);
+// ===================================
+// CONTACT ROTALARI (Sadece giriş yapmış kullanıcılar için)
+// ===================================
+router.get("/", getContacts);        // Token'ı olan adam kendi contact'larını listeleyecek
+router.post("/", createContact);     // Token'ı olan adam kendisine yeni contact ekleyecek
+router.put("/:id", updateContact);   // Token'ı olan adam SADECE KENDİSİNE AİT olan contact'ı güncelleyecek
+router.delete("/:id", deleteContact);// Token'ı olan adam SADECE KENDİSİNE AİT olan contact'ı silecek
 
-
-module.exports = router;
+export default router;

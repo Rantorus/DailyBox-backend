@@ -4,6 +4,7 @@ import dotenv from "dotenv"
 import pool from "./config/db.js";
 
 import userRoutes from "./routes/userRoutes.js"
+import contactRoutes from "./routes/contactRoutes.js"
 import errorHandling from "./middlewares/errorHandler.js";
 import createTables from "./data/createTables.js";
 
@@ -17,7 +18,8 @@ app.use(express.json());
 app.use(cors());
 
 // 2. KATMAN: Rotalar (İşlemlerin yapıldığı yer)
-app.use("/api/users", userRoutes); 
+app.use("/api/users", userRoutes);
+app.use("/api/contacts", contactRoutes);
 
 
 // 3. KATMAN: Güvenlik Ağı 
@@ -34,7 +36,7 @@ app.get("/", async (req, res, next) => { // Hata fırlatabilmesi için 'next' pa
         res.send(`The database name is: ${result.rows[0].current_database}`);
     } catch (error) {
         // Önceden konsola yazdırıp res.send dönüyorduk, artık hatayı doğrudan errorHandling'e yolluyoruz
-        next(error); 
+        next(error);
     }
 });
 

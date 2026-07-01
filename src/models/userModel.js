@@ -12,6 +12,12 @@ export const getUserByIdService = async (id) => {
     return result.rows[0];
 };
 
+// E-posta bazlı tek bir kullanıcı getirir (Login ve Register kontrolleri için)
+export const getUserByEmailService = async (email) => {
+    const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+    return result.rows[0];
+};
+
 // Yeni bir kullanıcı oluşturur (Sistem otomatik özel ID üretir)
 export const createUserService = async (userData) => {
     // 1. Sektör standardı tahmin edilemez özel bir ID üretiyoruz (Örn: usr_627491)
@@ -20,7 +26,13 @@ export const createUserService = async (userData) => {
     // 2. Gelen body paketini parçalıyoruz
     const { fullName, email, password, avatar, location, role, stats, isActive } = userData;
 
-    // 3. PostgreSQL sorgumuz (date kolonunu sistem otomatik basacağı için buraya yazmıyoruz)
+    // EĞER boş gönderilen (undefined) değerler varsa, PostgreSQL'deki 'DEFAULT' değerlerinin
+    // ezilip NULL olarak kaydedilmemesi için JavaScript tarafında yedek (fallback) değerler atıyoruz:
+    const finalRole = role || 'user';
+    const finalStats = stats || '{"completedBoxes": 0, "activeChapters": 0, "streakDays": 0}';
+    const finalIsActive = isActive !== undefined ? isActive : true;
+
+    // 3. PostgreSQL sorgumuz
     const query = `
         INSERT INTO users 
         (id, full_name, email, password, avatar, location, role, stats, is_active) 
@@ -29,7 +41,7 @@ export const createUserService = async (userData) => {
     `;
     
     // 4. Tam 9 adet parametreyi sırasıyla diziye diziyoruz
-    const values = [generatedId, fullName, email, password, avatar, location, role, stats, isActive];
+    const values = [generatedId, fullName, email, password, avatar, location, finalRole, finalStats, finalIsActive];
     
     const result = await pool.query(query, values);
     return result.rows[0];
