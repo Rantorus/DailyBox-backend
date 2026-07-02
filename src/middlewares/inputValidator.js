@@ -122,3 +122,36 @@ export const validateBoxUpdate = (req, res, next) => {
     }
     next();
 };
+
+// ==========================================
+// TODO VALIDASYONU
+// ==========================================
+const todoScheme = Joi.object({
+    text: Joi.string().min(1).max(500).required(),
+    isCompleted: Joi.boolean().optional(),
+    positionIndex: Joi.number().integer().min(0).optional()
+});
+
+export const validateTodo = (req, res, next) => {
+    const { error } = todoScheme.validate(req.body);
+    if (error) {
+        return res.status(400).json({
+            status: 400,
+            message: error.details[0].message,
+        });
+    }
+    next();
+};
+
+export const validateTodoUpdate = (req, res, next) => {
+    const optionalTodoScheme = todoScheme.fork(Object.keys(todoScheme.describe().keys), (schema) => schema.optional());
+    const { error } = optionalTodoScheme.validate(req.body);
+    
+    if (error) {
+        return res.status(400).json({
+            status: 400,
+            message: error.details[0].message,
+        });
+    }
+    next();
+};
