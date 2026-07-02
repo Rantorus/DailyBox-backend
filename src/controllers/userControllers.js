@@ -58,15 +58,15 @@ export const loginUser = async (req, res, next) => {
                 {
                     user: {
                         // DÜZELTME 1: "usarname" yazım hatası vardı ve bizim veritabanımızda kolonun adı "full_name"
-                        fullName: user.full_name, 
+                        fullName: user.full_name,
                         email: user.email,
                         id: user.id,
                     },
                 },
                 process.env.ACCESS_TOKEN_SECRET,
-                { expiresIn: "1m" } // Not: 1 dakika test için iyi ama canlı uygulamada "30d" (30 gün) yapmalısın.
+                { expiresIn: "30m" } // Not: 1 dakika test için iyi ama canlı uygulamada "30d" (30 gün) yapmalısın.
             );
-            
+
             // DÜZELTME 2: Standart handleResponse mimarimizi kullanıyoruz
             return handleResponse(res, 200, "Login successful", { accessToken });
         } else {
@@ -83,7 +83,7 @@ export const currentUser = async (req, res, next) => {
     try {
         // validateToken bize sadece token'ın içine koyduğumuz temel bilgileri (id, email, fullName) getirdi.
         // Ama biz kullanıcının EN GÜNCEL tüm verilerini (avatar, stats, location vs.) istiyoruz.
-        
+
         // req.user.id bilgisini kullanarak veritabanından adamın tüm güncel bilgilerini çekiyoruz:
         const fullUserData = await getUserByIdService(req.user.id);
 

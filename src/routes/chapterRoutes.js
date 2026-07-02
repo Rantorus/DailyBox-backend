@@ -5,18 +5,20 @@ import {
     getChapterById, 
     getChaptersByUserId, 
     updateChapter, 
-    deleteChapter 
+    deleteChapter,
+    addBoxToChapter,
+    removeBoxFromChapter,
+    checkBoxInChapter
 } from "../controllers/chapterController.js";
 import { validateToken } from "../middlewares/validateTokenHandler.js"; 
-import { validateChapter } from "../middlewares/inputValidator.js"; // DÜZELTME: Joi kontrolümüzü import ettik
+import { validateChapter } from "../middlewares/inputValidator.js";
 
 const router = express.Router();
 
 // GÜVENLİK DUVARI
-// Tüm chapter rotaları artık sadece token'ı olanlara açık.
 router.use(validateToken);
 
-// Yeni chapter oluşturma (POST) - Sadece düzgün veri yollayanlar girebilir
+// Yeni chapter oluşturma (POST)
 router.post("/", validateChapter, createChapter);
 
 // Kullanıcının kendi chapter'larını getirme (GET)
@@ -28,10 +30,20 @@ router.get("/all", getAllChapters);
 // Tek bir chapter getirme (GET)
 router.get("/:id", getChapterById);
 
-// Chapter güncelleme (PUT) - Güncellenecek veri de düzgün olmalı
+// Chapter güncelleme (PUT)
 router.put("/:id", validateChapter, updateChapter);
 
 // Chapter silme (DELETE)
 router.delete("/:id", deleteChapter);
+
+// ===================================
+// KUTU BAĞLAMA İŞLEMLERİ (Many-to-Many)
+// ===================================
+// Kutu ekle
+router.post("/:id/boxes", addBoxToChapter);
+// Kutu çıkar
+router.delete("/:id/boxes/:boxId", removeBoxFromChapter);
+// Kutu kontrolü
+router.get("/:id/boxes/:boxId", checkBoxInChapter);
 
 export default router;

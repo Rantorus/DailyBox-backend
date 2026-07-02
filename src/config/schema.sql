@@ -31,7 +31,6 @@ CREATE TABLE IF NOT EXISTS chapters (
 CREATE TABLE IF NOT EXISTS boxes (
     id VARCHAR(50) PRIMARY KEY,
     user_id VARCHAR(50) REFERENCES users(id) ON DELETE CASCADE,
-    chapter_id VARCHAR(50) REFERENCES chapters(id) ON DELETE SET NULL,
     
     title VARCHAR(150) NOT NULL,
     category VARCHAR(50), 
@@ -80,3 +79,12 @@ CREATE TABLE IF NOT EXISTS box_todos (
     is_completed BOOLEAN DEFAULT false,
     position_index INT
 );
+
+-- 5. CHAPTER - BOXES BAĞLANTI TABLOSU (Many-to-Many)
+CREATE TABLE IF NOT EXISTS chapter_boxes (
+    chapter_id VARCHAR(50) REFERENCES chapters(id) ON DELETE CASCADE,
+    box_id VARCHAR(50) REFERENCES boxes(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (chapter_id, box_id)
+);
+
