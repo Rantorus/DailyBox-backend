@@ -169,3 +169,71 @@ export const deleteBoxService = async (id) => {
     const result = await pool.query("DELETE FROM boxes WHERE id = $1 RETURNING *", [id]);
     return result.rows[0];
 };
+
+// ===================================
+// MEDYA YÖNETİMİ (ARRAY GÜNCELLEMELERİ)
+// ===================================
+
+// Kutuya resim, ses veya belge URL'i ekleme
+export const addMediaToBoxService = async (boxId, mediaType, url) => {
+    // Güvenlik (SQL Injection'a karşı sadece izin verilen kolon isimleri)
+    const allowedColumns = {
+        photo: "media_photos",
+        audio: "media_audio",
+        doc: "media_docs"
+    };
+
+    const targetColumn = allowedColumns[mediaType];
+    if (!targetColumn) {
+        throw new Error("Geçersiz medya türü");
+    }
+
+    // COALESCE kullanarak eğer kolon null ise önce boş dizi atıyoruz, sonra ARRAY_APPEND yapıyoruz
+    const query = `
+        UPDATE boxes 
+        SET ${targetColumn} = ARRAY_APPEND(COALESCE(${targetColumn}, ARRAY[]::text[]), $1),
+            has_media = true,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $2
+        RETURNING *;
+    `;
+    
+    const result = await pool.query(query, [url, boxId]);
+    return result.rows[0];
+};
+
+// Kutudan resim, ses veya belge URL'i silme
+export const removeMediaFromBoxService = async (boxId, mediaType, url) => {
+    const allowedColumns = {
+        photo: "media_photos",
+        audio: "media_audio",
+        doc: "media_docs"
+    };
+
+    const targetColumn = allowedColumns[mediaType];
+    if (!targetColumn) {
+        throw new Error("Geçersiz medya türü");
+    }
+
+    const query = `
+        UPDATE boxes 
+        SET ${targetColumn} = ARRAY_REMOVE(${targetColumn}, $1),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $2
+        RETURNING *;
+    `;
+    
+    const result = await pool.query(query, [url, boxId]);
+    
+    // Eğer tüm diziler boş kaldıysa has_media = false yapalım
+    const updatedBox = result.rows[0];
+    if (
+        (!updatedBox.media_photos || updatedBox.media_photos.length === 0) &&
+        (!updatedBox.media_audio || updatedBox.media_audio.length === 0) &&
+        (!updatedBox.media_docs || updatedBox.media_docs.length === 0)
+    ) {
+        await pool.query("UPDATE boxes SET has_media = false WHERE id = $1", [boxId]);
+    }
+
+    return result.rows[0];
+};

@@ -1,5 +1,10 @@
-import { createBoxService, deleteBoxService, getAllBoxesService, getBoxByIdService, getBoxesByUserIdService, updateBoxService, getBoxesByChapterIdService } from "../models/boxModel.js";
+import { 
+    createBoxService, deleteBoxService, getAllBoxesService, 
+    getBoxByIdService, getBoxesByUserIdService, updateBoxService, 
+    getBoxesByChapterIdService, addMediaToBoxService, removeMediaFromBoxService 
+} from "../models/boxModel.js";
 import { getChapterByIdService } from "../models/chapterModel.js";
+import cloudinary from "../config/cloudinaryConfig.js";
 
 const handleResponse = (res, status, message, data = null) => {
     res.status(status).json({
@@ -139,6 +144,111 @@ export const deleteBox = async (req, res, next) => {
 
         const deletedBox = await deleteBoxService(boxId);
         return handleResponse(res, 200, "Box deleted successfully", deletedBox);
+    } catch (error) {
+        next(error);
+    }
+}
+
+// ==========================================
+// MEDIA CONTROLLERS
+// ==========================================
+
+export const uploadBoxMedia = async (req, res, next) => {
+    try {
+        const boxId = req.params.id;
+
+        // 1. Güvenlik Kontrolü
+        const box = await getBoxByIdService(boxId);
+        if (!box) {
+            return handleResponse(res, 404, "Kutu bulunamadı");
+        }
+        if (box.user_id !== req.user.id) {
+            return handleResponse(res, 403, "Bu kutuya medya yükleme yetkiniz yok");
+        }
+
+        // 2. Multer'ın dosyayı başarıyla yakalayıp yakalamadığını kontrol et (upload.any() kullandığımız için req.files dizisine düşer)
+        if (!req.files || req.files.length === 0) {
+            return handleResponse(res, 400, "Lütfen bir dosya seçin");
+        }
+
+        const file = req.files[0]; // İlk yakalanan dosyayı alıyoruz
+
+        // 3. Dosyanın Cloudinary URL'sini ve tipini al (fieldname: photo, audio, doc)
+        const fileUrl = file.path; // Cloudinary'nin bize döndüğü güvenli URL
+        const mediaType = file.fieldname; 
+
+        // 3.5. Sıkı Doğrulama: Fieldname photo, audio veya doc olmak ZORUNDA
+        const validMediaTypes = ["photo", "audio", "doc"];
+        if (!validMediaTypes.includes(mediaType)) {
+            // Eğer geçersiz bir key ile geldiyse, Cloudinary'e yüklenen bu gereksiz dosyayı hemen siliyoruz (Çöp birikmesin)
+            const publicId = file.filename; // multer-storage-cloudinary filename özelliğine public_id'yi koyar
+            if (publicId) {
+                await cloudinary.uploader.destroy(publicId);
+            }
+            return handleResponse(res, 400, "Geçersiz dosya anahtarı (key). Sadece 'photo', 'audio' veya 'doc' kullanabilirsiniz.");
+        }
+
+        // 4. Veritabanını güncelle (ARRAY_APPEND)
+        const updatedBox = await addMediaToBoxService(boxId, mediaType, fileUrl);
+
+        return handleResponse(res, 201, "Medya başarıyla yüklendi", updatedBox);
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const deleteBoxMedia = async (req, res, next) => {
+    try {
+        const boxId = req.params.id;
+        const { mediaUrl, mediaType } = req.body; 
+        // Örn: { mediaUrl: "https://res.cloudinary.com/.../dosya.jpg", mediaType: "photo" }
+
+        if (!mediaUrl || !mediaType) {
+            return handleResponse(res, 400, "mediaUrl ve mediaType gereklidir");
+        }
+
+        // 1. Güvenlik Kontrolü
+        const box = await getBoxByIdService(boxId);
+        if (!box) {
+            return handleResponse(res, 404, "Kutu bulunamadı");
+        }
+        if (box.user_id !== req.user.id) {
+            return handleResponse(res, 403, "Bu kutudan medya silme yetkiniz yok");
+        }
+
+        // 2. Cloudinary'den dosyayı silmek için URL içinden "Public ID" (Dosyanın adı) bulmamız lazım.
+        // URL Formatı genelde şöyledir: .../v1234567/dailybox_photos/dosya_adi.jpg
+        // Dosya adı ve klasör yolunu ayırt etmeliyiz.
+        // Split işlemiyle Public ID'yi çıkartıyoruz:
+        const urlParts = mediaUrl.split('/');
+        const versionIndex = urlParts.findIndex(part => part.startsWith('v') && !isNaN(part.substring(1)));
+        
+        let publicId = "";
+        if (versionIndex !== -1 && versionIndex < urlParts.length - 1) {
+            // Versiyondan sonraki kısımları alıp birleştiriyoruz
+            const pathParts = urlParts.slice(versionIndex + 1);
+            publicId = pathParts.join('/');
+            
+            // Eğer resim veya ses ise uzantıyı siliyoruz (Cloudinary image/video için uzantısız publicId bekler)
+            if (mediaType !== "doc") {
+                publicId = publicId.replace(/\.[^/.]+$/, "");
+            }
+            // 'doc' (raw) türler için publicId uzantıyı da İÇERMELİDİR!
+        } else {
+             return handleResponse(res, 400, "Geçersiz Cloudinary URL formatı");
+        }
+
+        // 3. Cloudinary sunucularından dosyayı kalıcı olarak sil
+        let resourceType = "image";
+        if (mediaType === "audio") resourceType = "video";
+        if (mediaType === "doc") resourceType = "raw";
+        
+        await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
+
+        // 4. Veritabanından (ARRAY_REMOVE) URL'i sil
+        const updatedBox = await removeMediaFromBoxService(boxId, mediaType, mediaUrl);
+
+        return handleResponse(res, 200, "Medya başarıyla silindi", updatedBox);
     } catch (error) {
         next(error);
     }

@@ -64,7 +64,7 @@ export const loginUser = async (req, res, next) => {
                     },
                 },
                 process.env.ACCESS_TOKEN_SECRET,
-                { expiresIn: "30m" } // Not: 1 dakika test için iyi ama canlı uygulamada "30d" (30 gün) yapmalısın.
+                { expiresIn: "2h" } // Test için 2 saat yapıldı. Canlı uygulamada "30d" (30 gün) yapmalısın.
             );
 
             // DÜZELTME 2: Standart handleResponse mimarimizi kullanıyoruz

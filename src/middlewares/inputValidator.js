@@ -155,3 +155,22 @@ export const validateTodoUpdate = (req, res, next) => {
     }
     next();
 };
+
+// ==========================================
+// MEDIA VALIDASYONU
+// ==========================================
+const mediaDeleteScheme = Joi.object({
+    mediaUrl: Joi.string().uri().required(),
+    mediaType: Joi.string().valid("photo", "audio", "doc").required()
+});
+
+export const validateMediaDelete = (req, res, next) => {
+    const { error } = mediaDeleteScheme.validate(req.body);
+    if (error) {
+        return res.status(400).json({
+            status: 400,
+            message: error.details[0].message,
+        });
+    }
+    next();
+};
