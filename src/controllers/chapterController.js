@@ -12,13 +12,15 @@ const handleResponse = (res, status, message, data = null) => {
 // YENİ BİR CHAPTER EKLE
 export const createChapter = async (req, res, next) => {
     try {
-        const { title, description, coverImage } = req.body;
+        const { title, description, coverImage, isFavorite, type } = req.body;
 
         const newChapter = await createChapterService({
             userId: req.user.id,
             title,
             description,
-            coverImage
+            coverImage,
+            isFavorite,
+            type
         });
 
         return handleResponse(res, 201, "Chapter created successfully", newChapter);

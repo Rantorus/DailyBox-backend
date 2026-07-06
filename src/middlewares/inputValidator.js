@@ -46,7 +46,9 @@ export const validateLogin = (req, res, next) => {
 const chapterScheme = Joi.object({
     title: Joi.string().min(2).max(100).required(), // Başlık zorunlu ve en az 2 karakter olmalı
     description: Joi.string().max(500).optional(),
-    coverImage: Joi.string().uri().optional()
+    coverImage: Joi.string().uri().optional(),
+    isFavorite: Joi.boolean().optional(),
+    type: Joi.string().max(50).required()
 });
 
 export const validateChapter = (req, res, next) => {

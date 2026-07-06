@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS chapters (
     title VARCHAR(150) NOT NULL,
     description TEXT,
     cover_image TEXT,
+    is_favorite BOOLEAN DEFAULT false,
+    type VARCHAR(50) DEFAULT 'General',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
