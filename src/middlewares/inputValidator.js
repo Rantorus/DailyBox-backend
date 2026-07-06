@@ -96,7 +96,16 @@ const boxScheme = Joi.object({
     isReminded: Joi.boolean().optional(),
     
     // Diğerleri
-    status: Joi.string().optional()
+    status: Joi.string().optional(),
+    
+    // Todo (Frontend might send it)
+    hasTodos: Joi.boolean().optional(),
+    
+    // Media
+    hasMedia: Joi.boolean().optional(),
+    mediaPhotos: Joi.array().items(Joi.string()).optional(),
+    mediaDocs: Joi.array().items(Joi.string()).optional(),
+    mediaAudio: Joi.array().items(Joi.string()).optional()
 });
 
 // Sadece yeni kayıt oluştururken zorunlu alanları denetler
