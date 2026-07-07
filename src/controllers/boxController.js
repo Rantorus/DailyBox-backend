@@ -142,6 +142,21 @@ export const deleteBox = async (req, res, next) => {
             return handleResponse(res, 403, "Başkasının box'ını silemezsin.");
         }
 
+        // Eğer box'ın medyaları varsa Cloudinary'den temizle
+        if (existingBox.media_photos && Array.isArray(existingBox.media_photos)) {
+            for (const url of existingBox.media_photos) {
+                try {
+                    const urlParts = url.split('/');
+                    const folderAndFile = urlParts.slice(urlParts.length - 2).join('/');
+                    const publicId = folderAndFile.split('.')[0];
+                    await cloudinary.uploader.destroy(publicId);
+                } catch (cloudinaryError) {
+                    console.error("Cloudinary silme hatası (Box Delete):", cloudinaryError);
+                }
+            }
+        }
+        // İleride media_audio ve media_docs eklenirse benzer döngüler eklenebilir.
+
         const deletedBox = await deleteBoxService(boxId);
         return handleResponse(res, 200, "Box deleted successfully", deletedBox);
     } catch (error) {

@@ -8,6 +8,7 @@ import contactRoutes from "./routes/contactRoutes.js"
 import chapterRoutes from "./routes/chapterRoutes.js" // Chapter rotamızı ekledik
 import boxRoutes from "./routes/boxRoutes.js" // Box rotamızı ekledik
 import todoRoutes from "./routes/todoRoutes.js" // Todo rotamızı ekledik
+import mediaRoutes from "./routes/mediaRoutes.js" // Media rotamızı ekledik
 import errorHandling from "./middlewares/errorHandler.js";
 import createTables from "./data/createTables.js";
 
@@ -25,6 +26,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/chapters", chapterRoutes);
 app.use("/api/boxes", boxRoutes);
 app.use("/api/todos", todoRoutes);
+app.use("/api/media", mediaRoutes);
 app.use("/api/contacts", contactRoutes);
 
 // 3. KATMAN: Güvenlik Ağı 
