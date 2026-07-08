@@ -34,3 +34,23 @@ const audioStorage = new CloudinaryStorage({
 });
 
 export const uploadAudioMiddleware = multer({ storage: audioStorage });
+
+// Belgeler (Docs) için Storage ayarı
+const docStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: async (req, file) => {
+    // Uzantıyı ve adı alıyoruz
+    let filename = file.originalname || `doc_${Date.now()}`;
+    if (filename.includes('.')) {
+        filename = filename.split('.').slice(0, -1).join('.');
+    }
+    return {
+      folder: 'DailyBox_Docs',
+      resource_type: 'raw', // Dökümanlar için 'raw' ZORUNLUDUR
+      public_id: filename
+      // allowed_formats kısmını koymuyoruz ki her türlü dökümanı kabul etsin (Frontend uzantı sorunları için çözüm)
+    };
+  },
+});
+
+export const uploadDocMiddleware = multer({ storage: docStorage });

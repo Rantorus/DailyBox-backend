@@ -144,8 +144,10 @@ export const deleteBox = async (req, res, next) => {
 
         // Eğer box'ın medyaları varsa Cloudinary'den temizle
         if (existingBox.media_photos && Array.isArray(existingBox.media_photos)) {
-            for (const url of existingBox.media_photos) {
+            for (const item of existingBox.media_photos) {
                 try {
+                    const url = typeof item === 'object' ? item.url : item;
+                    if (!url) continue;
                     const urlParts = url.split('/');
                     const folderAndFile = urlParts.slice(urlParts.length - 2).join('/');
                     const publicId = folderAndFile.split('.')[0];
@@ -157,14 +159,32 @@ export const deleteBox = async (req, res, next) => {
         }
 
         if (existingBox.media_audio && Array.isArray(existingBox.media_audio)) {
-            for (const url of existingBox.media_audio) {
+            for (const item of existingBox.media_audio) {
                 try {
+                    const url = typeof item === 'object' ? item.url : item;
+                    if (!url) continue;
                     const urlParts = url.split('/');
                     const folderAndFile = urlParts.slice(urlParts.length - 2).join('/');
                     const publicId = folderAndFile.split('.')[0];
                     await cloudinary.uploader.destroy(publicId, { resource_type: 'video' });
                 } catch (cloudinaryError) {
                     console.error("Cloudinary silme hatası (Box Delete Audio):", cloudinaryError);
+                }
+            }
+        }
+
+        if (existingBox.media_docs && Array.isArray(existingBox.media_docs)) {
+            for (const item of existingBox.media_docs) {
+                try {
+                    const url = typeof item === 'object' ? item.url : item;
+                    if (!url) continue;
+                    const urlParts = url.split('/');
+                    const folderAndFile = urlParts.slice(urlParts.length - 2).join('/');
+                    // Dökümanlar raw olarak yüklendiğinde publicId genelde uzantı dahil olabilir veya olmayabilir.
+                    const publicId = folderAndFile.split('.')[0];
+                    await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
+                } catch (cloudinaryError) {
+                    console.error("Cloudinary silme hatası (Box Delete Doc):", cloudinaryError);
                 }
             }
         }

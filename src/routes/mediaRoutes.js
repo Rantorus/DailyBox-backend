@@ -1,6 +1,6 @@
 import express from 'express';
-import { uploadPhotoMiddleware, uploadAudioMiddleware } from '../middleware/uploadMiddleware.js';
-import { uploadPhotoController, deletePhotoController, uploadAudioController, deleteAudioController } from '../controllers/mediaController.js';
+import { uploadPhotoController, deletePhotoController, uploadAudioController, deleteAudioController, uploadDocController, deleteDocController } from '../controllers/mediaController.js';
+import { uploadPhotoMiddleware, uploadAudioMiddleware, uploadDocMiddleware } from '../middleware/uploadMiddleware.js';
 import asyncHandler from 'express-async-handler';
 
 const router = express.Router();
@@ -17,5 +17,11 @@ router.post('/box/:boxId/audio', uploadAudioMiddleware.single('audio'), asyncHan
 
 // Ses Silme Rotası: /api/media/box/:boxId/audio
 router.delete('/box/:boxId/audio', asyncHandler(deleteAudioController));
+
+// Döküman Yükleme Rotası: /api/media/box/:boxId/doc
+router.post('/box/:boxId/doc', uploadDocMiddleware.single('doc'), asyncHandler(uploadDocController));
+
+// Döküman Silme Rotası: /api/media/box/:boxId/doc
+router.delete('/box/:boxId/doc', asyncHandler(deleteDocController));
 
 export default router;

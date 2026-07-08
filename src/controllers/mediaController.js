@@ -143,3 +143,79 @@ export const deleteAudioController = async (req, res) => {
         res.status(500).json({ success: false, message: "Sunucu hatası oluştu." });
     }
 };
+
+// Döküman (Doc) Yükleme Controller'ı
+export const uploadDocController = async (req, res) => {
+    try {
+        const { boxId } = req.params;
+
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: "Döküman dosyası yüklenemedi." });
+        }
+
+        const docUrl = req.file.path;
+        const originalName = req.body.displayName || req.file.originalname || `doc_${Date.now()}`;
+        
+        // Veritabanına JSON objesi olarak ekle
+        const dateStr = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+        const mediaObj = { 
+            url: docUrl, 
+            name: originalName, 
+            size: req.file.size || req.file.bytes, // Cloudinary bytes olarak da döndürebilir
+            date: dateStr 
+        };
+        const updatedBox = await addMediaToBoxService(boxId, 'doc', mediaObj);
+
+        res.status(200).json({
+            success: true,
+            message: "Döküman başarıyla yüklendi.",
+            data: updatedBox.media_docs
+        });
+
+    } catch (error) {
+        console.error("Döküman yükleme hatası:", error);
+        res.status(500).json({ success: false, message: "Sunucu hatası oluştu." });
+    }
+};
+
+// Döküman (Doc) Silme Controller'ı
+export const deleteDocController = async (req, res) => {
+    try {
+        const { boxId } = req.params;
+        const { url } = req.body; 
+
+        if (!url) {
+            return res.status(400).json({ success: false, message: "Silinecek URL belirtilmedi." });
+        }
+
+        // 1. Cloudinary'den silme işlemi
+        try {
+            const urlParts = url.split('/');
+            const folderAndFile = urlParts.slice(urlParts.length - 2).join('/');
+            
+            // Raw (Döküman) tiplerinde public_id'ye UZANTI DAHİL OLABİLİR veya OLMAYABİLİR.
+            // Multer'da uzantıyı sildik, ancak Cloudinary bazen ekleyebilir. Raw dosyalarda dosyanın tam adını (uzantılı) denemek daha güvenlidir, 
+            // ancak eğer middleware'de public_id uzantısız kaydedildiyse public_id uzantısız olmalıdır.
+            // Raw dosyaları silerken resource_type: 'raw' ŞARTTIR.
+            const publicId = folderAndFile.split('.')[0]; 
+            
+            await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
+        } catch (cloudinaryError) {
+            console.error("Cloudinary'den silinirken hata oldu (Doc):", cloudinaryError);
+        }
+
+        // 2. Veritabanından silme işlemi
+        const updatedBox = await removeMediaFromBoxService(boxId, 'doc', url);
+
+        res.status(200).json({
+            success: true,
+            message: "Döküman başarıyla silindi.",
+            data: updatedBox.media_docs
+        });
+
+    } catch (error) {
+        console.error("Döküman silme hatası:", error);
+        res.status(500).json({ success: false, message: "Sunucu hatası oluştu." });
+    }
+};
+
