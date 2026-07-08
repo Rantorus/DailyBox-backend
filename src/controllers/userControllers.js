@@ -1,6 +1,7 @@
-import { createUserService, deleteUserService, getAllUsersService, getUserByIdService, updateUserService, getUserByEmailService } from "../models/userModel.js";
+import { createUserService, deleteUserService, getAllUsersService, getUserByIdService, updateUserService, getUserByEmailService, getUserMediaBoxesService } from "../models/userModel.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import cloudinary from "../config/cloudinaryConfig.js";
 
 const handleResponse = (res, status, message, data = null) => {
     res.status(status).json({
@@ -144,12 +145,115 @@ export const updateUser = async (req, res, next) => {
 
 export const deleteUser = async (req, res, next) => {
     try {
-        const deletedUser = await deleteUserService(req.params.id);
+        const userId = req.params.id;
 
-        // Düzeltme: (!user) yerine (!deletedUser) kullanıldı
+        // 1. Kullanıcının mevcut verilerini getir
+        const userToSil = await getUserByIdService(userId);
+        if (!userToSil) {
+            return handleResponse(res, 404, "User not found");
+        }
+
+        // 2. Avatarı Cloudinary'den sil
+        if (userToSil.avatar) {
+            try {
+                const urlParts = userToSil.avatar.split('/');
+                const folderAndFile = urlParts.slice(urlParts.length - 2).join('/');
+                const publicId = folderAndFile.split('.')[0];
+                await cloudinary.uploader.destroy(publicId);
+            } catch (err) {
+                console.error("Avatar silinirken Cloudinary hatası:", err);
+            }
+        }
+
+        // 3. Kullanıcının tüm kutularındaki medyaları bul ve Cloudinary'den sil
+        const boxes = await getUserMediaBoxesService(userId);
+        if (boxes && boxes.length > 0) {
+            for (const box of boxes) {
+                // Fotoğrafları sil (image türü varsayılan)
+                if (box.media_photos && box.media_photos.length > 0) {
+                    for (const photoUrl of box.media_photos) {
+                        try {
+                            const url = typeof photoUrl === 'string' ? photoUrl : photoUrl.url;
+                            if (url) {
+                                const urlParts = url.split('/');
+                                const folderAndFile = urlParts.slice(urlParts.length - 2).join('/');
+                                const publicId = folderAndFile.split('.')[0];
+                                await cloudinary.uploader.destroy(publicId);
+                            }
+                        } catch (err) {
+                            console.error("Fotoğraf silinirken hata:", err);
+                        }
+                    }
+                }
+
+                // Ses dosyalarını sil (resource_type: 'video')
+                if (box.media_audio && box.media_audio.length > 0) {
+                    for (const audioObj of box.media_audio) {
+                        try {
+                            const url = typeof audioObj === 'string' ? audioObj : audioObj.url; 
+                            const urlParts = url.split('/');
+                            const folderAndFile = urlParts.slice(urlParts.length - 2).join('/');
+                            const publicId = folderAndFile.split('.')[0];
+                            await cloudinary.uploader.destroy(publicId, { resource_type: 'video' });
+                        } catch (err) {
+                            console.error("Ses dosyası silinirken hata:", err);
+                        }
+                    }
+                }
+
+                // Dökümanları sil (resource_type: 'raw' uzantı gerektirir)
+                if (box.media_docs && box.media_docs.length > 0) {
+                    for (const docObj of box.media_docs) {
+                        try {
+                            const url = typeof docObj === 'string' ? docObj : docObj.url;
+                            const urlParts = url.split('/');
+                            const folderAndFile = urlParts.slice(urlParts.length - 2).join('/');
+                            await cloudinary.uploader.destroy(folderAndFile, { resource_type: 'raw' });
+                        } catch (err) {
+                            console.error("Döküman silinirken hata:", err);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. Veritabanından kullanıcıyı tamamen sil (ON DELETE CASCADE ile tüm bağlantılar silinir)
+        const deletedUser = await deleteUserService(userId);
+
         if (!deletedUser) return handleResponse(res, 404, "User not found");
         handleResponse(res, 200, "User deleted successfully", deletedUser);
     } catch (error) {
+        next(error);
+    }
+};
+
+// Avatar Yükleme Controller'ı
+export const uploadAvatarController = async (req, res, next) => {
+    try {
+        const userId = req.params.id; // Kullanıcı id'si URL'den gelir
+
+        // Multer çalıştıysa dosya bilgileri req.file içindedir
+        if (!req.file) {
+            return handleResponse(res, 400, "Profil fotoğrafı yüklenemedi.");
+        }
+
+        // Cloudinary'nin bize döndüğü güvenli URL
+        const avatarUrl = req.file.path;
+
+        // Veritabanındaki kullanıcıyı güncelle
+        const updatedUser = await updateUserService(userId, { avatar: avatarUrl });
+        if (!updatedUser) {
+            return handleResponse(res, 404, "Kullanıcı bulunamadı.");
+        }
+
+        // Şifreyi döndürmemek için güvenli bir kopya oluşturabiliriz
+        const safeUser = { ...updatedUser };
+        delete safeUser.password;
+
+        handleResponse(res, 200, "Profil fotoğrafı başarıyla güncellendi.", safeUser);
+
+    } catch (error) {
+        console.error("Avatar yükleme hatası:", error);
         next(error);
     }
 };

@@ -92,7 +92,7 @@ const boxScheme = Joi.object({
     isReminded: Joi.boolean().optional(),
     
     // Diğerleri
-    status: Joi.string().optional(),
+    status: Joi.boolean().optional(),
     
     // Todo (Frontend might send it)
     hasTodos: Joi.boolean().optional(),

@@ -49,8 +49,20 @@ export const createUserService = async (userData) => {
 
 // Kullanıcı bilgilerini günceller
 export const updateUserService = async (id, updateData) => {
-    const { fullName, email, password, avatar, location, role, stats, isActive } = updateData;
-    
+    // Önce mevcut kullanıcıyı çek
+    const existingUser = await getUserByIdService(id);
+    if (!existingUser) return null;
+
+    // Yeni gelen verileri mevcut verilerle harmanla
+    const fullName = updateData.fullName !== undefined ? updateData.fullName : existingUser.full_name;
+    const email = updateData.email !== undefined ? updateData.email : existingUser.email;
+    const password = updateData.password !== undefined ? updateData.password : existingUser.password;
+    const avatar = updateData.avatar !== undefined ? updateData.avatar : existingUser.avatar;
+    const location = updateData.location !== undefined ? updateData.location : existingUser.location;
+    const role = updateData.role !== undefined ? updateData.role : existingUser.role;
+    const stats = updateData.stats !== undefined ? updateData.stats : existingUser.stats;
+    const isActive = updateData.isActive !== undefined ? updateData.isActive : existingUser.is_active;
+
     const query = `
         UPDATE users 
         SET full_name = $1, email = $2, password = $3, avatar = $4, location = $5, role = $6, stats = $7, is_active = $8 
@@ -68,4 +80,13 @@ export const updateUserService = async (id, updateData) => {
 export const deleteUserService = async (id) => {
     const result = await pool.query("DELETE FROM users WHERE id = $1 RETURNING *", [id]);
     return result.rows[0];
+};
+
+// Kullanıcının medya array'lerine sahip tüm box'larını getirir
+export const getUserMediaBoxesService = async (userId) => {
+    const result = await pool.query(
+        "SELECT media_photos, media_audio, media_docs FROM boxes WHERE user_id = $1", 
+        [userId]
+    );
+    return result.rows;
 };
