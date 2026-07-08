@@ -151,11 +151,23 @@ export const deleteBox = async (req, res, next) => {
                     const publicId = folderAndFile.split('.')[0];
                     await cloudinary.uploader.destroy(publicId);
                 } catch (cloudinaryError) {
-                    console.error("Cloudinary silme hatası (Box Delete):", cloudinaryError);
+                    console.error("Cloudinary silme hatası (Box Delete Photo):", cloudinaryError);
                 }
             }
         }
-        // İleride media_audio ve media_docs eklenirse benzer döngüler eklenebilir.
+
+        if (existingBox.media_audio && Array.isArray(existingBox.media_audio)) {
+            for (const url of existingBox.media_audio) {
+                try {
+                    const urlParts = url.split('/');
+                    const folderAndFile = urlParts.slice(urlParts.length - 2).join('/');
+                    const publicId = folderAndFile.split('.')[0];
+                    await cloudinary.uploader.destroy(publicId, { resource_type: 'video' });
+                } catch (cloudinaryError) {
+                    console.error("Cloudinary silme hatası (Box Delete Audio):", cloudinaryError);
+                }
+            }
+        }
 
         const deletedBox = await deleteBoxService(boxId);
         return handleResponse(res, 200, "Box deleted successfully", deletedBox);

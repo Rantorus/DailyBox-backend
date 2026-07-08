@@ -63,9 +63,9 @@ CREATE TABLE IF NOT EXISTS boxes (
     
     -- Media Arrays
     has_media BOOLEAN DEFAULT false,
-    media_photos TEXT[],
-    media_docs TEXT[],
-    media_audio TEXT[],
+    media_photos JSONB DEFAULT '[]'::jsonb,
+    media_docs JSONB DEFAULT '[]'::jsonb,
+    media_audio JSONB DEFAULT '[]'::jsonb,
 
     status VARCHAR(20),
     

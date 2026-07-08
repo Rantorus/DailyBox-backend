@@ -174,8 +174,8 @@ export const deleteBoxService = async (id) => {
 // MEDYA YÖNETİMİ (ARRAY GÜNCELLEMELERİ)
 // ===================================
 
-// Kutuya resim, ses veya belge URL'i ekleme
-export const addMediaToBoxService = async (boxId, mediaType, url) => {
+// Kutuya resim, ses veya belge objesi ekleme (JSONB)
+export const addMediaToBoxService = async (boxId, mediaType, mediaObj) => {
     // Güvenlik (SQL Injection'a karşı sadece izin verilen kolon isimleri)
     const allowedColumns = {
         photo: "media_photos",
@@ -188,21 +188,22 @@ export const addMediaToBoxService = async (boxId, mediaType, url) => {
         throw new Error("Geçersiz medya türü");
     }
 
-    // COALESCE kullanarak eğer kolon null ise önce boş dizi atıyoruz, sonra ARRAY_APPEND yapıyoruz
+    // JSONB objesi eklemek için || operatörü (concat) kullanılır
     const query = `
         UPDATE boxes 
-        SET ${targetColumn} = ARRAY_APPEND(COALESCE(${targetColumn}, ARRAY[]::text[]), $1),
+        SET ${targetColumn} = COALESCE(${targetColumn}, '[]'::jsonb) || $1::jsonb,
             has_media = true,
             updated_at = CURRENT_TIMESTAMP
         WHERE id = $2
         RETURNING *;
     `;
     
-    const result = await pool.query(query, [url, boxId]);
+    // Postgres'in $1 için diziyi/objeyi algılayabilmesi için JSON.stringify yapmak en güvenlisidir
+    const result = await pool.query(query, [JSON.stringify([mediaObj]), boxId]);
     return result.rows[0];
 };
 
-// Kutudan resim, ses veya belge URL'i silme
+// Kutudan resim, ses veya belge URL'ine göre obje silme
 export const removeMediaFromBoxService = async (boxId, mediaType, url) => {
     const allowedColumns = {
         photo: "media_photos",
@@ -215,9 +216,15 @@ export const removeMediaFromBoxService = async (boxId, mediaType, url) => {
         throw new Error("Geçersiz medya türü");
     }
 
+    // JSONB array içinden belirli bir objeyi silmek için alt sorgu kullanıyoruz (Postgres 12+ için jsonb_path_query veya jsonb_agg)
     const query = `
         UPDATE boxes 
-        SET ${targetColumn} = ARRAY_REMOVE(${targetColumn}, $1),
+        SET ${targetColumn} = COALESCE(
+            (SELECT jsonb_agg(elem) 
+             FROM jsonb_array_elements(${targetColumn}) elem 
+             WHERE elem->>'url' != $1), 
+            '[]'::jsonb
+        ),
             updated_at = CURRENT_TIMESTAMP
         WHERE id = $2
         RETURNING *;
@@ -227,11 +234,11 @@ export const removeMediaFromBoxService = async (boxId, mediaType, url) => {
     
     // Eğer tüm diziler boş kaldıysa has_media = false yapalım
     const updatedBox = result.rows[0];
-    if (
-        (!updatedBox.media_photos || updatedBox.media_photos.length === 0) &&
-        (!updatedBox.media_audio || updatedBox.media_audio.length === 0) &&
-        (!updatedBox.media_docs || updatedBox.media_docs.length === 0)
-    ) {
+    const isPhotosEmpty = !updatedBox.media_photos || (Array.isArray(updatedBox.media_photos) && updatedBox.media_photos.length === 0);
+    const isAudioEmpty = !updatedBox.media_audio || (Array.isArray(updatedBox.media_audio) && updatedBox.media_audio.length === 0);
+    const isDocsEmpty = !updatedBox.media_docs || (Array.isArray(updatedBox.media_docs) && updatedBox.media_docs.length === 0);
+    
+    if (isPhotosEmpty && isAudioEmpty && isDocsEmpty) {
         await pool.query("UPDATE boxes SET has_media = false WHERE id = $1", [boxId]);
     }
 
