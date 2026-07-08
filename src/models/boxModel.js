@@ -80,8 +80,7 @@ export const createBoxService = async (boxData) => {
         userId, title,
         category, date, description, tags,
         priority, type, isFavorite,
-        hasLocation, locationAddress,
-        locationLat, locationLng,
+        hasLocation, locations,
         hasReminder, reminderDate,
         reminderTitle, isReminded,
         hasNote, noteTitle, noteContent,
@@ -94,16 +93,16 @@ export const createBoxService = async (boxData) => {
     (id, user_id, title,
      category, date, description, tags,
      priority, type, is_favorite,
-      has_location, location_address,
-       location_lat, location_lng,
+      has_location, locations,
         has_reminder, reminder_date,
         reminder_title, is_reminded, 
         has_note, note_title, note_content,
          note_is_visible, has_media, 
            media_photos, media_docs, media_audio, status)
     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
-    $11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
-    $21,$22,$23,$24,$25,$26,$27)
+    $11,
+    $12,$13,$14,$15,$16,$17,$18,$19,$20,
+    $21,$22,$23,$24,$25)
     RETURNING *;
     `
 
@@ -111,8 +110,7 @@ export const createBoxService = async (boxData) => {
         generatedId, userId, title,
         category, date, description, tags,
         priority, type, isFavorite,
-        hasLocation, locationAddress,
-        locationLat, locationLng,
+        hasLocation, locations ? JSON.stringify(locations) : '[]',
         hasReminder, reminderDate,
         reminderTitle, isReminded,
         hasNote, noteTitle, noteContent,
@@ -128,7 +126,7 @@ export const updateBoxService = async (id, updateData) => {
     const allowedFields = {
         title: 'title', category: 'category', date: 'date',
         description: 'description', tags: 'tags', priority: 'priority', type: 'type', isFavorite: 'is_favorite',
-        hasLocation: 'has_location', locationAddress: 'location_address', locationLat: 'location_lat', locationLng: 'location_lng',
+        hasLocation: 'has_location', locations: 'locations',
         hasReminder: 'has_reminder', reminderDate: 'reminder_date', reminderTitle: 'reminder_title', isReminded: 'is_reminded',
         hasNote: 'has_note', noteTitle: 'note_title', noteContent: 'note_content', noteIsVisible: 'note_is_visible',
         hasMedia: 'has_media', mediaPhotos: 'media_photos', mediaDocs: 'media_docs', mediaAudio: 'media_audio',
@@ -143,7 +141,11 @@ export const updateBoxService = async (id, updateData) => {
     for (const key of Object.keys(updateData)) {
         if (allowedFields[key] !== undefined) {
             setClauses.push(`${allowedFields[key]} = $${paramIndex}`);
-            values.push(updateData[key]);
+            if (key === 'locations') {
+                values.push(JSON.stringify(updateData[key]));
+            } else {
+                values.push(updateData[key]);
+            }
             paramIndex++;
         }
     }

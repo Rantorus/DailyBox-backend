@@ -43,11 +43,9 @@ CREATE TABLE IF NOT EXISTS boxes (
     type VARCHAR(50),
     is_favorite BOOLEAN DEFAULT false,
     
-    -- Location
+    -- Locations
     has_location BOOLEAN DEFAULT false,
-    location_address TEXT,
-    location_lat DECIMAL(10,8),
-    location_lng DECIMAL(11,8),
+    locations JSONB DEFAULT '[]'::jsonb,
     
     -- Reminder
     has_reminder BOOLEAN DEFAULT false,

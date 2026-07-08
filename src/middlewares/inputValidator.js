@@ -79,11 +79,7 @@ const boxScheme = Joi.object({
     
     // Lokasyon
     hasLocation: Joi.boolean().optional(),
-    locationAddress: Joi.string().optional().allow(null, ''),
-    locationLat: Joi.number().optional(),
-    locationLng: Joi.number().optional(),
-    
-    // Not
+    locations: Joi.array().items(Joi.object()).optional(),
     hasNote: Joi.boolean().optional(),
     noteTitle: Joi.string().optional().allow(null, ''),
     noteContent: Joi.string().optional().allow(null, ''),
