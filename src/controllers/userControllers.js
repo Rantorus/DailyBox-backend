@@ -111,6 +111,35 @@ export const createUser = async (req, res, next) => {
     }
 };
 
+export const changePasswordController = async (req, res, next) => {
+    try {
+        const { oldPassword, newPassword } = req.body;
+
+        if (!oldPassword || !newPassword) {
+            return handleResponse(res, 400, "Old and new passwords are required");
+        }
+
+        const user = await getUserByIdService(req.user.id);
+        if (!user) {
+            return handleResponse(res, 404, "User not found");
+        }
+
+        // Eski şifreyi doğrula
+        const isMatch = await bcrypt.compare(oldPassword, user.password);
+        if (!isMatch) {
+            return handleResponse(res, 400, "Old password is incorrect");
+        }
+
+        // Yeni şifreyi hash'le ve kaydet
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await updateUserService(req.user.id, { password: hashedPassword });
+
+        return handleResponse(res, 200, "Password changed successfully");
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const getAllUsers = async (req, res, next) => {
     try {
         const users = await getAllUsersService();
@@ -234,7 +263,7 @@ export const uploadAvatarController = async (req, res, next) => {
 
         // Multer çalıştıysa dosya bilgileri req.file içindedir
         if (!req.file) {
-            return handleResponse(res, 400, "Profil fotoğrafı yüklenemedi.");
+            return handleResponse(res, 400, "Profile photo could not be uploaded.");
         }
 
         // Cloudinary'nin bize döndüğü güvenli URL

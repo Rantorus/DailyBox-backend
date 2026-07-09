@@ -8,7 +8,7 @@ export const uploadPhotoController = async (req, res) => {
 
         // Multer çalıştıysa dosya bilgileri req.file içindedir
         if (!req.file) {
-            return res.status(400).json({ success: false, message: "Fotoğraf dosyası yüklenemedi." });
+            return res.status(400).json({ success: false, message: "Photo file could not be uploaded." });
         }
 
         // Cloudinary'nin bize döndüğü güvenli URL
