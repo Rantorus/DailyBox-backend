@@ -24,7 +24,7 @@ export const registerUser = async (req, res, next) => {
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
-        console.log("hashed password: ", hashedPassword);
+
 
         const newUser = await createUserService({
             ...req.body, // Kullanıcının gönderdiği tüm verileri (avatar, location vs.) al
@@ -65,7 +65,7 @@ export const loginUser = async (req, res, next) => {
                     },
                 },
                 process.env.ACCESS_TOKEN_SECRET,
-                { expiresIn: "2h" } // Test için 2 saat yapıldı. Canlı uygulamada "30d" (30 gün) yapmalısın.
+                { expiresIn: "90d" } // Mobil uygulama olduğu için oturumun 90 gün açık kalması idealdir.
             );
 
             // DÜZELTME 2: Standart handleResponse mimarimizi kullanıyoruz

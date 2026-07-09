@@ -83,12 +83,6 @@ export const uploadAudioController = async (req, res) => {
 
         const audioUrl = req.file.path;
         
-        // DEBUG: Gelen değerleri izlemek için
-        console.log('=== AUDIO UPLOAD DEBUG ===');
-        console.log('req.body.displayName:', req.body.displayName);
-        console.log('req.file.originalname:', req.file.originalname);
-        console.log('=========================');
-        
         const originalName = req.body.displayName || req.file.originalname || `audio_${Date.now()}.m4a`;
         
         // Veritabanına JSON objesi olarak ekle
