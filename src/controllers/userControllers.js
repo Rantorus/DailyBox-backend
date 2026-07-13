@@ -58,7 +58,6 @@ export const loginUser = async (req, res, next) => {
             const accessToken = jwt.sign(
                 {
                     user: {
-                        // DÜZELTME 1: "usarname" yazım hatası vardı ve bizim veritabanımızda kolonun adı "full_name"
                         fullName: user.full_name,
                         email: user.email,
                         id: user.id,
@@ -68,10 +67,9 @@ export const loginUser = async (req, res, next) => {
                 { expiresIn: "90d" } // Mobil uygulama olduğu için oturumun 90 gün açık kalması idealdir.
             );
 
-            // DÜZELTME 2: Standart handleResponse mimarimizi kullanıyoruz
+            
             return handleResponse(res, 200, "Login successful", { accessToken });
         } else {
-            // DÜZELTME 3: throw Error yerine yine standart hata mimarimizi dönüyoruz (Böylece loglarda çirkin kırmızı hatalar çıkmaz)
             return handleResponse(res, 401, "Email or password is not valid!");
         }
     } catch (error) {
@@ -269,17 +267,30 @@ export const uploadAvatarController = async (req, res, next) => {
         // Cloudinary'nin bize döndüğü güvenli URL
         const avatarUrl = req.file.path;
 
-        // Veritabanındaki kullanıcıyı güncelle
+        // 1. Kullanıcının eski avatarını bul ve Cloudinary'den sil
+        const currentUser = await getUserByIdService(userId);
+        if (currentUser && currentUser.avatar) {
+            try {
+                const urlParts = currentUser.avatar.split('/');
+                const folderAndFile = urlParts.slice(urlParts.length - 2).join('/');
+                const publicId = folderAndFile.split('.')[0];
+                await cloudinary.uploader.destroy(publicId);
+            } catch (err) {
+                console.error("Eski avatar silinirken Cloudinary hatası:", err);
+            }
+        }
+
+        // 2. Veritabanındaki kullanıcıyı güncelle
         const updatedUser = await updateUserService(userId, { avatar: avatarUrl });
         if (!updatedUser) {
-            return handleResponse(res, 404, "Kullanıcı bulunamadı.");
+            return handleResponse(res, 404, "User not found.");
         }
 
         // Şifreyi döndürmemek için güvenli bir kopya oluşturabiliriz
         const safeUser = { ...updatedUser };
         delete safeUser.password;
 
-        handleResponse(res, 200, "Profil fotoğrafı başarıyla güncellendi.", safeUser);
+        handleResponse(res, 200, "Profile photo updated successfully.", safeUser);
 
     } catch (error) {
         console.error("Avatar yükleme hatası:", error);

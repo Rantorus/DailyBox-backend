@@ -7,17 +7,13 @@ import { uploadAvatarMiddleware } from "../middleware/uploadMiddleware.js";
 
 const router = express.Router();
 
-// ===================================
-// Auth (Kayıt/Giriş) Rotaları (Videodaki kısım)
-// ===================================
+// Auth (Kayıt/Giriş) Rotaları 
 router.post("/register", validateUser, registerUser);
 router.post("/login", validateLogin, loginUser);
 router.get("/current", validateToken, currentUser);
 router.patch("/change-password", validateToken, changePasswordController);
 
-// ===================================
 // Avatar Yükleme Rotası
-// ===================================
 router.post("/:id/avatar", validateToken, uploadAvatarMiddleware.single('avatar'), uploadAvatarController);
 
 // ===================================
