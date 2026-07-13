@@ -17,6 +17,9 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 5000;
 
+// Render/Heroku proxy ayarı (Rate limiter'ın IP'leri doğru algılaması için)
+app.set("trust proxy", 1);
+
 // 1. KATMAN: Gelen İstekleri Karşılama
 app.use(express.json());
 app.use(cors());
