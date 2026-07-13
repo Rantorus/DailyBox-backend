@@ -1,7 +1,8 @@
-import { createUserService, deleteUserService, getAllUsersService, getUserByIdService, updateUserService, getUserByEmailService, getUserMediaBoxesService } from "../models/userModel.js";
+import { createUserService, deleteUserService, getAllUsersService, getUserByIdService, updateUserService, getUserByEmailService, getUserMediaBoxesService, setResetOtpService, clearResetOtpAndSetPasswordService } from "../models/userModel.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import cloudinary from "../config/cloudinaryConfig.js";
+import { sendResetEmail } from "../utils/mailer.js";
 
 const handleResponse = (res, status, message, data = null) => {
     res.status(status).json({
@@ -294,6 +295,118 @@ export const uploadAvatarController = async (req, res, next) => {
 
     } catch (error) {
         console.error("Avatar yükleme hatası:", error);
+        next(error);
+    }
+};
+
+// Şifremi Unuttum - OTP Kodu Gönderimi
+export const forgotPassword = async (req, res, next) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return handleResponse(res, 400, "Email is required");
+        }
+
+        const user = await getUserByEmailService(email);
+        if (!user) {
+            return handleResponse(res, 404, "User not found.");
+        }
+
+        // Check cooldown (3 minutes)
+        if (user.reset_otp_last_requested) {
+            const lastRequested = new Date(user.reset_otp_last_requested);
+            const now = new Date();
+            const diffInMinutes = (now - lastRequested) / 1000 / 60;
+            if (diffInMinutes < 3) {
+                return handleResponse(res, 429, `Please wait ${Math.ceil(3 - diffInMinutes)} minutes before requesting a new code.`);
+            }
+        }
+
+        // Generate 6 digit OTP
+        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+        // Save OTP to DB
+        await setResetOtpService(email, otpCode);
+
+        // Send Email
+        const emailSent = await sendResetEmail(email, otpCode);
+        if (!emailSent) {
+            return handleResponse(res, 500, "An error occurred while sending the email.");
+        }
+
+        return handleResponse(res, 200, "Password reset code sent to your email.");
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Şifre Sıfırlama - OTP Doğrulaması (Sadece Kod Kontrolü)
+export const verifyOtp = async (req, res, next) => {
+    try {
+        const { email, otpCode } = req.body;
+        
+        if (!email || !otpCode) {
+            return handleResponse(res, 400, "Email and OTP code are required.");
+        }
+
+        const user = await getUserByEmailService(email);
+        if (!user) {
+            return handleResponse(res, 404, "User not found.");
+        }
+
+        // Validate OTP
+        if (user.reset_otp !== otpCode) {
+            return handleResponse(res, 400, "Invalid OTP code.");
+        }
+
+        // Validate Expiry
+        const now = new Date();
+        const expiry = new Date(user.reset_otp_expiry);
+        if (now > expiry) {
+            return handleResponse(res, 400, "OTP code has expired. Please request a new code.");
+        }
+
+        return handleResponse(res, 200, "OTP verified successfully.");
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Şifre Sıfırlama - Şifre Değişimi
+export const resetPassword = async (req, res, next) => {
+    try {
+        const { email, otpCode, newPassword } = req.body;
+        
+        if (!email || !otpCode || !newPassword) {
+            return handleResponse(res, 400, "Email, OTP code and new password are required.");
+        }
+
+        const user = await getUserByEmailService(email);
+        if (!user) {
+            return handleResponse(res, 404, "User not found.");
+        }
+
+        // Validate OTP
+        if (user.reset_otp !== otpCode) {
+            return handleResponse(res, 400, "Invalid OTP code.");
+        }
+
+        // Validate Expiry
+        const now = new Date();
+        const expiry = new Date(user.reset_otp_expiry);
+        if (now > expiry) {
+            return handleResponse(res, 400, "OTP code has expired. Please request a new code.");
+        }
+
+        // Hash new password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+        // Update DB
+        await clearResetOtpAndSetPasswordService(email, hashedPassword);
+
+        return handleResponse(res, 200, "Your password has been reset successfully. You can login with your new password.");
+    } catch (error) {
         next(error);
     }
 };

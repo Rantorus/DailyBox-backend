@@ -82,11 +82,37 @@ export const deleteUserService = async (id) => {
     return result.rows[0];
 };
 
-// Kullanıcının medya array'lerine sahip tüm box'larını getirir
+// Kullanıcının kutularında (DailyBox) kullandığı tüm medyaları (audio, photo, doc) tek seferde toplu olarak getirir.
 export const getUserMediaBoxesService = async (userId) => {
     const result = await pool.query(
-        "SELECT media_photos, media_audio, media_docs FROM boxes WHERE user_id = $1", 
+        "SELECT * FROM boxes WHERE user_id = $1 AND (photo IS NOT NULL OR audio IS NOT NULL OR document IS NOT NULL)",
         [userId]
     );
     return result.rows;
+};
+
+// Şifre sıfırlama kodu kaydetme (15 dk geçerlilik, bekleme süresi kaydı)
+export const setResetOtpService = async (email, otpCode) => {
+    const result = await pool.query(
+        `UPDATE users 
+         SET reset_otp = $1, 
+             reset_otp_expiry = NOW() + INTERVAL '15 minutes', 
+             reset_otp_last_requested = NOW() 
+         WHERE email = $2 RETURNING *`,
+        [otpCode, email]
+    );
+    return result.rows[0];
+};
+
+// Şifreyi güncelleyip OTP kayıtlarını temizleme
+export const clearResetOtpAndSetPasswordService = async (email, hashedPassword) => {
+    const result = await pool.query(
+        `UPDATE users 
+         SET password = $1, 
+             reset_otp = NULL, 
+             reset_otp_expiry = NULL 
+         WHERE email = $2 RETURNING *`,
+        [hashedPassword, email]
+    );
+    return result.rows[0];
 };
