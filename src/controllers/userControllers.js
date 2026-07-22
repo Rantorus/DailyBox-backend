@@ -1,8 +1,8 @@
-import { createUserService, deleteUserService, getAllUsersService, getUserByIdService, updateUserService, getUserByEmailService, getUserMediaBoxesService, setResetOtpService, clearResetOtpAndSetPasswordService } from "../models/userModel.js";
+import { createUserService, deleteUserService, getAllUsersService, getUserByIdService, updateUserService, getUserByEmailService, getUserMediaBoxesService, setResetOtpService, clearResetOtpAndSetPasswordService, activateUserService } from "../models/userModel.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import cloudinary from "../config/cloudinaryConfig.js";
-import { sendResetEmail } from "../utils/mailer.js";
+import { sendResetEmail, sendActivationEmail } from "../utils/mailer.js";
 
 const handleResponse = (res, status, message, data = null) => {
     res.status(status).json({
@@ -20,30 +20,34 @@ export const registerUser = async (req, res, next) => {
         const userAvailable = await getUserByEmailService(email);
 
         if (userAvailable) {
-
             return handleResponse(res, 400, "User already registered!");
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-
         const newUser = await createUserService({
-            ...req.body, // Kullanıcının gönderdiği tüm verileri (avatar, location vs.) al
-            password: hashedPassword // Sadece şifreyi ezip hashlenmiş halini koy
+            ...req.body,
+            password: hashedPassword,
+            isActive: false // Hesap varsayılan olarak inaktif başlıyor
         });
 
         if (newUser) {
-            // Şifreyi geri dönmemek için (güvenlik) videodaki gibi sadece id ve email dönüyoruz
-            return handleResponse(res, 201, "User registered successfully", {
+            // Aktivasyon emaili gönder
+            const activationToken = jwt.sign({ email: newUser.email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '24h' });
+            
+            // Backend URL render üzerinden veya lokalden çalışacak şekilde dinamik ayarlanmalı
+            const backendUrl = process.env.BACKEND_URL || "https://dailybox-backend.onrender.com";
+            await sendActivationEmail(newUser.email, activationToken, backendUrl);
+
+            return handleResponse(res, 201, "User registered successfully. Please check your email to activate your account.", {
                 id: newUser.id,
                 email: newUser.email
             });
         } else {
-            // Veritabanına kayıt başarısız olursa
             return handleResponse(res, 400, "User data is not valid");
         }
     } catch (error) {
-        next(error); // Express 5 hatayı errorHandler'a yönlendirir
+        next(error); 
     }
 };
 
@@ -54,8 +58,12 @@ export const loginUser = async (req, res, next) => {
 
         const user = await getUserByEmailService(email);
 
-        // Kullanıcı var mı ve şifreler eşleşiyor mu kontrolü
         if (user && (await bcrypt.compare(password, user.password))) {
+            // Şifre doğru, ancak hesap aktif mi?
+            if (!user.is_active) {
+                return handleResponse(res, 403, "Please activate your account using the link sent to your email.");
+            }
+
             const accessToken = jwt.sign(
                 {
                     user: {
@@ -312,6 +320,11 @@ export const forgotPassword = async (req, res, next) => {
             return handleResponse(res, 404, "User not found.");
         }
 
+        // Eğer hesap henüz aktif edilmemişse şifre sıfırlamaya izin verme
+        if (!user.is_active) {
+            return handleResponse(res, 403, "Please activate your account before resetting your password.");
+        }
+
         // Check cooldown (3 minutes)
         if (user.reset_otp_last_requested) {
             const lastRequested = new Date(user.reset_otp_last_requested);
@@ -406,6 +419,80 @@ export const resetPassword = async (req, res, next) => {
         await clearResetOtpAndSetPasswordService(email, hashedPassword);
 
         return handleResponse(res, 200, "Your password has been reset successfully. You can login with your new password.");
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Hesabı Aktifleştirme (Email linkinden gelir)
+export const activateAccount = async (req, res, next) => {
+    try {
+        const { token } = req.query;
+
+        if (!token) {
+            return res.status(400).send(`
+                <html>
+                    <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+                        <h1 style="color: red;">Error</h1>
+                        <p>Activation token is missing.</p>
+                    </body>
+                </html>
+            `);
+        }
+
+        let decoded;
+        try {
+            decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+        } catch (err) {
+            return res.status(400).send(`
+                <html>
+                    <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+                        <h1 style="color: red;">Invalid or Expired Link</h1>
+                        <p>This activation link has expired or is invalid. Please try registering again or contact support.</p>
+                    </body>
+                </html>
+            `);
+        }
+
+        const user = await getUserByEmailService(decoded.email);
+
+        if (!user) {
+            return res.status(404).send(`
+                <html>
+                    <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+                        <h1 style="color: red;">User Not Found</h1>
+                        <p>The account associated with this email does not exist.</p>
+                    </body>
+                </html>
+            `);
+        }
+
+        if (user.is_active) {
+            return res.status(200).send(`
+                <html>
+                    <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px; background-color: #f0f8ff;">
+                        <div style="max-width: 500px; margin: auto; padding: 30px; background: white; border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                            <h1 style="color: #007BFF;">Already Activated</h1>
+                            <p style="font-size: 18px; color: #555;">Your account is already active. You can open the DailyBox app and log in.</p>
+                        </div>
+                    </body>
+                </html>
+            `);
+        }
+
+        await activateUserService(decoded.email);
+
+        return res.status(200).send(`
+            <html>
+                <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px; background-color: #e6ffe6;">
+                    <div style="max-width: 500px; margin: auto; padding: 30px; background: white; border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                        <h1 style="color: #28a745;">Success!</h1>
+                        <p style="font-size: 18px; color: #555;">Your account has been activated successfully.</p>
+                        <p style="font-size: 16px; color: #777; margin-top: 20px;">You can now return to the DailyBox app and log in to your account.</p>
+                    </div>
+                </body>
+            </html>
+        `);
     } catch (error) {
         next(error);
     }

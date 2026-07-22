@@ -46,3 +46,52 @@ export const sendResetEmail = async (toEmail, otpCode) => {
         return false;
     }
 };
+
+export const sendActivationEmail = async (toEmail, token, backendUrl) => {
+    try {
+        const activationLink = `${backendUrl}/api/users/activate?token=${token}`;
+        
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: {
+                'api-key': process.env.BREVO_API_KEY,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                sender: { name: 'DailyBox', email: 'dailyyboxxapp@gmail.com' },
+                to: [{ email: toEmail }],
+                subject: 'DailyBox Account Activation',
+                textContent: `Please verify your email address to activate your DailyBox account by clicking the following link: ${activationLink}`,
+                htmlContent: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+                        <h2 style="color: #333; text-align: center;">Welcome to DailyBox!</h2>
+                        <p style="color: #555; font-size: 16px;">Hello,</p>
+                        <p style="color: #555; font-size: 16px;">Thank you for registering. Please click the button below to verify your email and activate your account.</p>
+                        <div style="text-align: center; margin: 30px 0;">
+                            <a href="${activationLink}" style="display: inline-block; padding: 15px 30px; background-color: #007BFF; color: #ffffff; text-decoration: none; border-radius: 8px; font-size: 18px; font-weight: bold;">
+                                Activate Account
+                            </a>
+                        </div>
+                        <p style="color: #555; font-size: 14px;">If the button doesn't work, you can copy and paste the following link into your browser:</p>
+                        <p style="color: #007BFF; font-size: 12px; word-break: break-all;">${activationLink}</p>
+                        <p style="color: #555; font-size: 14px; margin-top: 20px;">If you didn't create an account, you can safely ignore this email.</p>
+                        <p style="color: #999; font-size: 12px; text-align: center; margin-top: 40px;">DailyBox Team</p>
+                    </div>
+                `,
+            }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            console.error('Brevo API error:', data);
+            return false;
+        }
+
+        console.log('Activation email sent via Brevo:', data.messageId);
+        return true;
+    } catch (error) {
+        console.error('Error sending activation email:', error);
+        return false;
+    }
+};

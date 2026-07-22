@@ -116,3 +116,14 @@ export const clearResetOtpAndSetPasswordService = async (email, hashedPassword) 
     );
     return result.rows[0];
 };
+
+// Hesabı aktif hale getir (Email doğrulaması sonrası)
+export const activateUserService = async (email) => {
+    const result = await pool.query(
+        `UPDATE users 
+         SET is_active = true 
+         WHERE email = $1 RETURNING *`,
+        [email]
+    );
+    return result.rows[0];
+};

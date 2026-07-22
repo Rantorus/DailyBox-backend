@@ -1,7 +1,7 @@
 import express from "express";
 import rateLimit from "express-rate-limit";
 
-import { createUser, deleteUser, getAllUsers, getUserById, updateUser, registerUser, loginUser, currentUser, uploadAvatarController, changePasswordController, forgotPassword, resetPassword, verifyOtp } from "../controllers/userControllers.js";
+import { createUser, deleteUser, getAllUsers, getUserById, updateUser, registerUser, loginUser, currentUser, uploadAvatarController, changePasswordController, forgotPassword, resetPassword, verifyOtp, activateAccount } from "../controllers/userControllers.js";
 import { validateUser, validateLogin } from "../middlewares/inputValidator.js";
 import { validateToken } from "../middlewares/validateTokenHandler.js";
 import { uploadAvatarMiddleware } from "../middleware/uploadMiddleware.js";
@@ -11,6 +11,7 @@ const router = express.Router();
 // Auth (Kayıt/Giriş) Rotaları 
 router.post("/register", validateUser, registerUser);
 router.post("/login", validateLogin, loginUser);
+router.get("/activate", activateAccount);
 router.get("/current", validateToken, currentUser);
 router.patch("/change-password", validateToken, changePasswordController);
 
