@@ -82,6 +82,7 @@ export const createBoxService = async (boxData) => {
         priority, type, isFavorite,
         hasLocation, locations,
         hasReminder, reminderDate,
+        reminderTime, isReminderAlarm,
         reminderTitle, isReminded,
         hasNote, noteTitle, noteContent,
         noteIsVisible, hasMedia, mediaPhotos,
@@ -95,6 +96,7 @@ export const createBoxService = async (boxData) => {
      priority, type, is_favorite,
       has_location, locations,
         has_reminder, reminder_date,
+        reminder_time, is_reminder_alarm,
         reminder_title, is_reminded, 
         has_note, note_title, note_content,
          note_is_visible, has_media, 
@@ -102,7 +104,7 @@ export const createBoxService = async (boxData) => {
     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
     $11,
     $12,$13,$14,$15,$16,$17,$18,$19,$20,
-    $21,$22,$23,$24,$25)
+    $21,$22,$23,$24,$25,$26,$27)
     RETURNING *;
     `
 
@@ -112,6 +114,7 @@ export const createBoxService = async (boxData) => {
         priority, type, isFavorite,
         hasLocation, locations ? JSON.stringify(locations) : '[]',
         hasReminder, reminderDate,
+        reminderTime, isReminderAlarm,
         reminderTitle, isReminded,
         hasNote, noteTitle, noteContent,
         noteIsVisible, hasMedia, mediaPhotos,
@@ -127,7 +130,7 @@ export const updateBoxService = async (id, updateData) => {
         title: 'title', category: 'category', date: 'date',
         description: 'description', tags: 'tags', priority: 'priority', type: 'type', isFavorite: 'is_favorite',
         hasLocation: 'has_location', locations: 'locations',
-        hasReminder: 'has_reminder', reminderDate: 'reminder_date', reminderTitle: 'reminder_title', isReminded: 'is_reminded',
+        hasReminder: 'has_reminder', reminderDate: 'reminder_date', reminderTime: 'reminder_time', isReminderAlarm: 'is_reminder_alarm', reminderTitle: 'reminder_title', isReminded: 'is_reminded',
         hasNote: 'has_note', noteTitle: 'note_title', noteContent: 'note_content', noteIsVisible: 'note_is_visible',
         hasMedia: 'has_media', mediaPhotos: 'media_photos', mediaDocs: 'media_docs', mediaAudio: 'media_audio',
         status: 'status'
