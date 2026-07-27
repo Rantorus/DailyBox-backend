@@ -24,4 +24,23 @@ pool.on("connect", ()=>{
     console.log("connection pool ok with DB");
 })
 
+// Auto-migration to ensure columns exist in production
+const ensureSchema = async () => {
+    try {
+        await pool.query(`
+            ALTER TABLE boxes 
+            ADD COLUMN IF NOT EXISTS reminder_time VARCHAR(10)
+        `);
+        await pool.query(`
+            ALTER TABLE boxes 
+            ADD COLUMN IF NOT EXISTS is_reminder_alarm BOOLEAN DEFAULT FALSE
+        `);
+        console.log("Database schema auto-updated for reminder fields.");
+    } catch (err) {
+        console.error("Error auto-updating database schema:", err.message);
+    }
+};
+
+ensureSchema();
+
 export default pool;
