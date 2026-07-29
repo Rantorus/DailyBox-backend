@@ -61,8 +61,8 @@ const avatarStorage = new CloudinaryStorage({
   params: {
     folder: 'DailyBox_Avatars',
     allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
-    transformation: [{ width: 500, height: 500, crop: 'fill', gravity: 'face' }] // Yüzü merkeze alarak kare yap
-  },
+    transformation: [{ width: 500, height: 500, crop: 'fill', gravity: 'face' }]
+  }
 });
 
 export const uploadAvatarMiddleware = multer({ storage: avatarStorage });

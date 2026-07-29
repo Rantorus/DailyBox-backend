@@ -1,4 +1,5 @@
 import { addMediaToBoxService, removeMediaFromBoxService } from '../models/boxModel.js';
+import { updateUserStorageService } from '../models/userModel.js';
 import cloudinary from '../config/cloudinary.js';
 
 // Fotoğraf Yükleme Controller'ı
@@ -20,6 +21,12 @@ export const uploadPhotoController = async (req, res) => {
         // Veritabanına JSON objesi olarak ekle
         const mediaObj = { url: photoUrl, name: originalName };
         const updatedBox = await addMediaToBoxService(boxId, 'photo', mediaObj);
+
+        // Depolama alanını güncelle
+        const fileSize = req.file.bytes || req.file.size || 0;
+        if (fileSize > 0) {
+            await updateUserStorageService(req.user.id, fileSize);
+        }
 
         res.status(200).json({
             success: true,
@@ -47,11 +54,18 @@ export const deletePhotoController = async (req, res) => {
         // URL'den public_id'yi çıkarma: 
         // Örnek URL: https://res.cloudinary.com/djv43df/image/upload/v1234/DailyBox_Photos/abcde123.jpg
         // public_id: DailyBox_Photos/abcde123
+        let deletedBytes = 0;
         try {
             const urlParts = url.split('/');
             const folderAndFile = urlParts.slice(urlParts.length - 2).join('/'); // DailyBox_Photos/abcde123.jpg
             const publicId = folderAndFile.split('.')[0]; // DailyBox_Photos/abcde123
             
+            // Dosya boyutunu öğren
+            const resource = await cloudinary.api.resource(publicId, { resource_type: "image" });
+            if (resource && resource.bytes) {
+                deletedBytes = resource.bytes;
+            }
+
             await cloudinary.uploader.destroy(publicId);
         } catch (cloudinaryError) {
             console.error("Cloudinary'den silinirken hata oldu, ama DB'den silmeye devam ediyoruz:", cloudinaryError);
@@ -59,6 +73,11 @@ export const deletePhotoController = async (req, res) => {
 
         // 2. Veritabanından silme işlemi
         const updatedBox = await removeMediaFromBoxService(boxId, 'photo', url);
+
+        // Kullanıcıya kotasını (MB) iade et
+        if (deletedBytes > 0) {
+            await updateUserStorageService(req.user.id, -deletedBytes);
+        }
 
         res.status(200).json({
             success: true,
@@ -89,6 +108,12 @@ export const uploadAudioController = async (req, res) => {
         const mediaObj = { url: audioUrl, name: originalName };
         const updatedBox = await addMediaToBoxService(boxId, 'audio', mediaObj);
 
+        // Depolama alanını güncelle
+        const fileSize = req.file.bytes || req.file.size || 0;
+        if (fileSize > 0) {
+            await updateUserStorageService(req.user.id, fileSize);
+        }
+
         res.status(200).json({
             success: true,
             message: "Ses dosyası başarıyla yüklendi.",
@@ -112,19 +137,39 @@ export const deleteAudioController = async (req, res) => {
         }
 
         // 1. Cloudinary'den silme işlemi
+        let deletedBytes = 0;
         try {
             const urlParts = url.split('/');
-            const folderAndFile = urlParts.slice(urlParts.length - 2).join('/');
-            const publicId = folderAndFile.split('.')[0]; 
+            const versionIndex = urlParts.findIndex(part => part.startsWith('v') && !isNaN(part.substring(1)));
             
-            // SES SİLERKEN resource_type: 'video' ZORUNLUDUR!
-            await cloudinary.uploader.destroy(publicId, { resource_type: 'video' });
+            let publicId = "";
+            if (versionIndex !== -1 && versionIndex < urlParts.length - 1) {
+                const pathParts = urlParts.slice(versionIndex + 1);
+                publicId = pathParts.join('/');
+                publicId = publicId.replace(/\.[^/.]+$/, ""); // uzantıyı sil
+                
+                // Dosya boyutunu öğren (Audio'lar Cloudinary'de video tipindedir)
+                const resource = await cloudinary.api.resource(publicId, { resource_type: "video" });
+                if (resource && resource.bytes) {
+                    deletedBytes = resource.bytes;
+                }
+
+                await cloudinary.uploader.destroy(publicId, { resource_type: 'video' });
+            } else {
+                console.error("Geçersiz ses URL formatı:", url);
+            }
+            
         } catch (cloudinaryError) {
-            console.error("Cloudinary'den silinirken hata oldu (Audio):", cloudinaryError);
+            console.error("Cloudinary'den ses silinirken hata oldu:", cloudinaryError);
         }
 
         // 2. Veritabanından silme işlemi
         const updatedBox = await removeMediaFromBoxService(boxId, 'audio', url);
+
+        // Kullanıcıya kotasını (MB) iade et
+        if (deletedBytes > 0) {
+            await updateUserStorageService(req.user.id, -deletedBytes);
+        }
 
         res.status(200).json({
             success: true,
@@ -160,6 +205,12 @@ export const uploadDocController = async (req, res) => {
         };
         const updatedBox = await addMediaToBoxService(boxId, 'doc', mediaObj);
 
+        // Depolama alanını güncelle
+        const fileSize = req.file.bytes || req.file.size || 0;
+        if (fileSize > 0) {
+            await updateUserStorageService(req.user.id, fileSize);
+        }
+
         res.status(200).json({
             success: true,
             message: "Döküman başarıyla yüklendi.",
@@ -183,23 +234,40 @@ export const deleteDocController = async (req, res) => {
         }
 
         // 1. Cloudinary'den silme işlemi
+        let deletedBytes = 0;
         try {
             const urlParts = url.split('/');
-            const folderAndFile = urlParts.slice(urlParts.length - 2).join('/');
+            const versionIndex = urlParts.findIndex(part => part.startsWith('v') && !isNaN(part.substring(1)));
             
-            // Raw (Döküman) tiplerinde public_id'ye UZANTI DAHİL OLABİLİR veya OLMAYABİLİR.
-            // Multer'da uzantıyı sildik, ancak Cloudinary bazen ekleyebilir. Raw dosyalarda dosyanın tam adını (uzantılı) denemek daha güvenlidir, 
-            // ancak eğer middleware'de public_id uzantısız kaydedildiyse public_id uzantısız olmalıdır.
-            // Raw dosyaları silerken resource_type: 'raw' ŞARTTIR.
-            const publicId = folderAndFile.split('.')[0]; 
+            let publicId = "";
+            if (versionIndex !== -1 && versionIndex < urlParts.length - 1) {
+                const pathParts = urlParts.slice(versionIndex + 1);
+                publicId = pathParts.join('/');
+                
+                // Doc (Raw) dosyalarında uzantı publicId'ye dahildir!
+                
+                // Dosya boyutunu öğren (Raw'lar Cloudinary'de raw tipindedir)
+                const resource = await cloudinary.api.resource(publicId, { resource_type: "raw" });
+                if (resource && resource.bytes) {
+                    deletedBytes = resource.bytes;
+                }
+
+                await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
+            } else {
+                console.error("Geçersiz doc URL formatı:", url);
+            }
             
-            await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
         } catch (cloudinaryError) {
-            console.error("Cloudinary'den silinirken hata oldu (Doc):", cloudinaryError);
+            console.error("Cloudinary'den doc silinirken hata oldu:", cloudinaryError);
         }
 
         // 2. Veritabanından silme işlemi
         const updatedBox = await removeMediaFromBoxService(boxId, 'doc', url);
+
+        // Kullanıcıya kotasını (MB) iade et
+        if (deletedBytes > 0) {
+            await updateUserStorageService(req.user.id, -deletedBytes);
+        }
 
         res.status(200).json({
             success: true,

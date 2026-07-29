@@ -127,3 +127,27 @@ export const activateUserService = async (email) => {
     );
     return result.rows[0];
 };
+
+// Kullanıcının kullandığı depolama alanını (storage_used) günceller (Artırma veya Azaltma)
+export const updateUserStorageService = async (userId, bytesToAdd) => {
+    // bytesToAdd eksi veya artı olabilir
+    const query = `
+        UPDATE users 
+        SET storage_used = GREATEST(COALESCE(storage_used, 0) + $1, 0) 
+        WHERE id = $2 
+        RETURNING storage_used;
+    `;
+    const result = await pool.query(query, [bytesToAdd, userId]);
+    return result.rows[0];
+};
+
+// Rolü 'user' olan tüm kullanıcıların toplam storage_used miktarını getirir
+export const getTotalUserStorageService = async () => {
+    const query = `
+        SELECT SUM(COALESCE(storage_used, 0)) as total_storage 
+        FROM users 
+        WHERE role = 'user';
+    `;
+    const result = await pool.query(query);
+    return result.rows[0].total_storage || 0;
+};

@@ -35,6 +35,10 @@ const ensureSchema = async () => {
             ALTER TABLE boxes 
             ADD COLUMN IF NOT EXISTS is_reminder_alarm BOOLEAN DEFAULT FALSE
         `);
+        await pool.query(`
+            ALTER TABLE users 
+            ADD COLUMN IF NOT EXISTS storage_used BIGINT DEFAULT 0
+        `);
         console.log("Database schema auto-updated for reminder fields.");
     } catch (err) {
         console.error("Error auto-updating database schema:", err.message);

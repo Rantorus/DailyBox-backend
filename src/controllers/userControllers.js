@@ -1,4 +1,4 @@
-import { createUserService, deleteUserService, getAllUsersService, getUserByIdService, updateUserService, getUserByEmailService, getUserMediaBoxesService, setResetOtpService, clearResetOtpAndSetPasswordService, activateUserService } from "../models/userModel.js";
+import { createUserService, deleteUserService, getAllUsersService, getUserByIdService, updateUserService, getUserByEmailService, getUserMediaBoxesService, setResetOtpService, clearResetOtpAndSetPasswordService, activateUserService, updateUserStorageService } from "../models/userModel.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import cloudinary from "../config/cloudinaryConfig.js";
@@ -18,6 +18,12 @@ export const registerUser = async (req, res, next) => {
         const { fullName, email, password } = req.body;
 
         const userAvailable = await getUserByEmailService(email);
+
+        // Maksimum Kullanıcı Sınırı Kontrolü (40 Kullanıcı)
+        const allUsers = await getAllUsersService();
+        if (allUsers.length >= 40) {
+            return handleResponse(res, 403, "Registration limit reached. We are closed to new registrations as the free server capacity has been reached.");
+        }
 
         if (userAvailable) {
             return handleResponse(res, 400, "User already registered!");
@@ -244,7 +250,10 @@ export const deleteUser = async (req, res, next) => {
                             const url = typeof docObj === 'string' ? docObj : docObj.url;
                             const urlParts = url.split('/');
                             const folderAndFile = urlParts.slice(urlParts.length - 2).join('/');
-                            await cloudinary.uploader.destroy(folderAndFile, { resource_type: 'raw' });
+                            let publicId = folderAndFile.split('.')[0];
+                            const ext = url.split('.').pop();
+                            publicId = `${publicId}.${ext}`; 
+                            await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
                         } catch (err) {
                             console.error("Döküman silinirken hata:", err);
                         }
@@ -277,12 +286,20 @@ export const uploadAvatarController = async (req, res, next) => {
         const avatarUrl = req.file.path;
 
         // 1. Kullanıcının eski avatarını bul ve Cloudinary'den sil
+        let deletedBytes = 0;
         const currentUser = await getUserByIdService(userId);
         if (currentUser && currentUser.avatar) {
             try {
                 const urlParts = currentUser.avatar.split('/');
                 const folderAndFile = urlParts.slice(urlParts.length - 2).join('/');
                 const publicId = folderAndFile.split('.')[0];
+                
+                // Eski avatarın boyutunu öğren
+                const resource = await cloudinary.api.resource(publicId, { resource_type: "image" });
+                if (resource && resource.bytes) {
+                    deletedBytes = resource.bytes;
+                }
+
                 await cloudinary.uploader.destroy(publicId);
             } catch (err) {
                 console.error("Eski avatar silinirken Cloudinary hatası:", err);
@@ -293,6 +310,13 @@ export const uploadAvatarController = async (req, res, next) => {
         const updatedUser = await updateUserService(userId, { avatar: avatarUrl });
         if (!updatedUser) {
             return handleResponse(res, 404, "User not found.");
+        }
+
+        // 3. Kullanıcının storage_used miktarını güncelle (yeni ekle, eskiyi çıkar)
+        const uploadedFileSize = req.file.size || req.file.bytes || 0;
+        if (uploadedFileSize > 0 || deletedBytes > 0) {
+            const netBytesToAdd = uploadedFileSize - deletedBytes;
+            await updateUserStorageService(userId, netBytesToAdd);
         }
 
         // Şifreyi döndürmemek için güvenli bir kopya oluşturabiliriz

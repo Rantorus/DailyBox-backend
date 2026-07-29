@@ -5,6 +5,7 @@ import { createUser, deleteUser, getAllUsers, getUserById, updateUser, registerU
 import { validateUser, validateLogin } from "../middlewares/inputValidator.js";
 import { validateToken } from "../middlewares/validateTokenHandler.js";
 import { uploadAvatarMiddleware } from "../middleware/uploadMiddleware.js";
+import { checkQuota } from "../middlewares/quotaMiddleware.js";
 
 const router = express.Router();
 
@@ -27,7 +28,7 @@ router.post("/verify-otp", verifyOtp);
 router.post("/reset-password", resetPassword);
 
 // Avatar Yükleme Rotası
-router.post("/:id/avatar", validateToken, uploadAvatarMiddleware.single('avatar'), uploadAvatarController);
+router.post("/:id/avatar", validateToken, checkQuota, uploadAvatarMiddleware.single('avatar'), uploadAvatarController);
 
 // ===================================
 // Klasik CRUD Rotalarımız (Zaten sende olan kısım)

@@ -5,49 +5,14 @@ import cloudinary from "../config/cloudinaryConfig.js";
 // Cloudinary Storage Ayarları
 const storage = new CloudinaryStorage({
     cloudinary: cloudinary,
-    params: async (req, file) => {
-        // 1. Orijinal dosya uzantısını alıyoruz
-        const ext = file.originalname.split('.').pop().toLowerCase();
-        
-        let folderName = "dailybox_misc";
-        let resourceType = "auto";
-        
-        // 2. Gelen dosyanın türüne göre (form'daki 'fieldname') klasör ve tip seçimi
-        if (file.fieldname === "photo") {
-            folderName = "dailybox_photos";
-            resourceType = "image";
-        } 
-        else if (file.fieldname === "audio") {
-            folderName = "dailybox_audio";
-            resourceType = "video"; // Ses dosyaları Cloudinary'de video altyapısıyla saklanır
-        } 
-        else if (file.fieldname === "doc") {
-            folderName = "dailybox_docs";
-            // Cloudinary varsayılan güvenlik ayarlarında PDF'lerin 'image' olarak görüntülenmesini engeller (401 hatası verir).
-            // Bu yüzden PDF dahil tüm dokümanları 'raw' (ham) olarak tutmalıyız.
-            resourceType = "raw"; 
-        }
-
-        // 3. Cloudinary Parametreleri
-        const params = {
-            folder: folderName,
-            resource_type: resourceType,
-        };
-
-        // 4. Uzantı Ayarları
-        // Cloudinary 'raw' dosyalarda format parametresini bazen bozabilir.
-        // Bu yüzden formatı sadece resim (pdf dahil) ve ses dosyaları için ekliyoruz.
-        // Raw dosyalar Cloudinary tarafından zaten otomatik olarak kendi uzantılarıyla kaydedilir (public_id üzerinden).
-        if (resourceType !== "raw") {
-            params.format = ext;
-        } else {
-            // Raw dosyalar için uzantının kaybolmaması adına public_id'nin sonuna uzantıyı manuel ekliyoruz.
-            // Dosyanın asıl adını boşluklardan temizleyip birleştiriyoruz.
-            const cleanName = file.originalname.split('.')[0].replace(/[^a-zA-Z0-9]/g, "_");
-            params.public_id = `${cleanName}_${Date.now()}.${ext}`;
-        }
-
-        return params;
+    params: {
+        folder: (req, file) => {
+            if (file.fieldname === 'photo') return 'dailybox_photos';
+            if (file.fieldname === 'audio') return 'dailybox_audio';
+            if (file.fieldname === 'doc') return 'dailybox_docs';
+            return 'dailybox_others';
+        },
+        resource_type: 'auto',
     },
 });
 
