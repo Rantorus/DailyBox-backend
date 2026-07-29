@@ -1,7 +1,7 @@
 import express from "express";
 import rateLimit from "express-rate-limit";
 
-import { createUser, deleteUser, getAllUsers, getUserById, updateUser, registerUser, loginUser, currentUser, uploadAvatarController, changePasswordController, forgotPassword, resetPassword, verifyOtp, activateAccount } from "../controllers/userControllers.js";
+import { createUser, deleteUser, getAllUsers, getUserById, updateUser, registerUser, loginUser, currentUser, uploadAvatarController, changePasswordController, forgotPassword, resetPassword, verifyOtp, activateAccount, getStorageStats } from "../controllers/userControllers.js";
 import { validateUser, validateLogin } from "../middlewares/inputValidator.js";
 import { validateToken } from "../middlewares/validateTokenHandler.js";
 import { uploadAvatarMiddleware } from "../middleware/uploadMiddleware.js";
@@ -15,6 +15,7 @@ router.post("/login", validateLogin, loginUser);
 router.get("/activate", activateAccount);
 router.get("/current", validateToken, currentUser);
 router.patch("/change-password", validateToken, changePasswordController);
+router.get("/storage-stats", validateToken, getStorageStats);
 
 // Şifremi Unuttum Rate Limiter (Aynı IP'den 1 saatte max 3 istek)
 const forgotPasswordLimiter = rateLimit({
@@ -30,9 +31,7 @@ router.post("/reset-password", resetPassword);
 // Avatar Yükleme Rotası
 router.post("/:id/avatar", validateToken, checkQuota, uploadAvatarMiddleware.single('avatar'), uploadAvatarController);
 
-// ===================================
-// Klasik CRUD Rotalarımız (Zaten sende olan kısım)
-// ===================================
+// --- Klasik CRUD Rotalarımız (Zaten sende olan kısım) ---
 router.post("/", validateUser, createUser);
 router.get("/", getAllUsers);
 router.get("/:id", getUserById);

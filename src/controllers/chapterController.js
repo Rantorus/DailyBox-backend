@@ -113,9 +113,7 @@ export const deleteChapter = async (req, res, next) => {
     }
 }
 
-// ========================================================
-// MANY-TO-MANY (CHAPTER - BOX) İŞLEMLERİ
-// ========================================================
+// --- MANY-TO-MANY (CHAPTER - BOX) İŞLEMLERİ ---
 
 // Chapter'a Kutu Ekle (POST /api/chapters/:id/boxes)
 export const addBoxToChapter = async (req, res, next) => {

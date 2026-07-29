@@ -1,6 +1,34 @@
 import { addMediaToBoxService, removeMediaFromBoxService } from '../models/boxModel.js';
-import { updateUserStorageService } from '../models/userModel.js';
+import { updateUserStorageService, getUserByIdService, getTotalUserStorageService } from '../models/userModel.js';
 import cloudinary from '../config/cloudinary.js';
+
+const MAX_PERSONAL_LIMIT_BYTES = 100 * 1024 * 1024; // 100 MB
+const MAX_GLOBAL_LIMIT_BYTES = 2300 * 1024 * 1024; // 2.3 GB
+
+// --- KESİN KOTA KONTROLÜ (UPLOAD SONRASI / DB ÖNCESİ) ---
+const enforceExactQuota = async (userId, file) => {
+    if (!file) return { valid: true };
+    const fileSize = file.bytes || file.size || 0;
+    if (fileSize === 0) return { valid: true };
+
+    const user = await getUserByIdService(userId);
+    if (!user) return { valid: false, message: "Kullanıcı bulunamadı." };
+
+    if (user.role === 'admin') return { valid: true };
+
+    const currentUsed = parseInt(user.storage_used || 0, 10);
+    const globalUsed = parseInt(await getTotalUserStorageService() || 0, 10);
+
+    if (currentUsed + fileSize > MAX_PERSONAL_LIMIT_BYTES) {
+        return { valid: false, message: "You have exceeded your personal storage limit (100 MB). The file is too large." };
+    }
+
+    if (globalUsed + fileSize > MAX_GLOBAL_LIMIT_BYTES) {
+        return { valid: false, message: "Global free server storage is full. The file is too large." };
+    }
+
+    return { valid: true };
+};
 
 // Fotoğraf Yükleme Controller'ı
 export const uploadPhotoController = async (req, res) => {
@@ -12,9 +40,19 @@ export const uploadPhotoController = async (req, res) => {
             return res.status(400).json({ success: false, message: "Photo file could not be uploaded." });
         }
 
+        // --- ENFORCE EXACT QUOTA ---
+        const quotaCheck = await enforceExactQuota(req.user.id, req.file);
+        if (!quotaCheck.valid) {
+            if (req.file.filename) {
+                await cloudinary.uploader.destroy(req.file.filename).catch(err => console.error("Cloudinary Rollback Hata:", err));
+            }
+            return res.status(403).json({ success: false, message: quotaCheck.message });
+        }
+        // ---------------------------
+
         // Cloudinary'nin bize döndüğü güvenli URL
         const photoUrl = req.file.path;
-        
+
         // Form verisinden orijinal display name gelmişse onu kullan
         const originalName = req.body.displayName || req.file.originalname || `photo_${Date.now()}.jpg`;
 
@@ -59,7 +97,7 @@ export const deletePhotoController = async (req, res) => {
             const urlParts = url.split('/');
             const folderAndFile = urlParts.slice(urlParts.length - 2).join('/'); // DailyBox_Photos/abcde123.jpg
             const publicId = folderAndFile.split('.')[0]; // DailyBox_Photos/abcde123
-            
+
             // Dosya boyutunu öğren
             const resource = await cloudinary.api.resource(publicId, { resource_type: "image" });
             if (resource && resource.bytes) {
@@ -100,10 +138,21 @@ export const uploadAudioController = async (req, res) => {
             return res.status(400).json({ success: false, message: "Ses dosyası yüklenemedi." });
         }
 
+        // --- ENFORCE EXACT QUOTA ---
+        const quotaCheck = await enforceExactQuota(req.user.id, req.file);
+        if (!quotaCheck.valid) {
+            if (req.file.filename) {
+                // Audio is treated as video in Cloudinary
+                await cloudinary.uploader.destroy(req.file.filename, { resource_type: "video" }).catch(err => console.error("Cloudinary Rollback Hata:", err));
+            }
+            return res.status(403).json({ success: false, message: quotaCheck.message });
+        }
+        // ---------------------------
+
         const audioUrl = req.file.path;
-        
+
         const originalName = req.body.displayName || req.file.originalname || `audio_${Date.now()}.m4a`;
-        
+
         // Veritabanına JSON objesi olarak ekle
         const mediaObj = { url: audioUrl, name: originalName };
         const updatedBox = await addMediaToBoxService(boxId, 'audio', mediaObj);
@@ -130,7 +179,7 @@ export const uploadAudioController = async (req, res) => {
 export const deleteAudioController = async (req, res) => {
     try {
         const { boxId } = req.params;
-        const { url } = req.body; 
+        const { url } = req.body;
 
         if (!url) {
             return res.status(400).json({ success: false, message: "Silinecek URL belirtilmedi." });
@@ -141,13 +190,13 @@ export const deleteAudioController = async (req, res) => {
         try {
             const urlParts = url.split('/');
             const versionIndex = urlParts.findIndex(part => part.startsWith('v') && !isNaN(part.substring(1)));
-            
+
             let publicId = "";
             if (versionIndex !== -1 && versionIndex < urlParts.length - 1) {
                 const pathParts = urlParts.slice(versionIndex + 1);
                 publicId = pathParts.join('/');
                 publicId = publicId.replace(/\.[^/.]+$/, ""); // uzantıyı sil
-                
+
                 // Dosya boyutunu öğren (Audio'lar Cloudinary'de video tipindedir)
                 const resource = await cloudinary.api.resource(publicId, { resource_type: "video" });
                 if (resource && resource.bytes) {
@@ -158,7 +207,7 @@ export const deleteAudioController = async (req, res) => {
             } else {
                 console.error("Geçersiz ses URL formatı:", url);
             }
-            
+
         } catch (cloudinaryError) {
             console.error("Cloudinary'den ses silinirken hata oldu:", cloudinaryError);
         }
@@ -192,16 +241,27 @@ export const uploadDocController = async (req, res) => {
             return res.status(400).json({ success: false, message: "Döküman dosyası yüklenemedi." });
         }
 
+        // --- ENFORCE EXACT QUOTA ---
+        const quotaCheck = await enforceExactQuota(req.user.id, req.file);
+        if (!quotaCheck.valid) {
+            if (req.file.filename) {
+                // Docs are treated as 'raw' in Cloudinary
+                await cloudinary.uploader.destroy(req.file.filename, { resource_type: "raw" }).catch(err => console.error("Cloudinary Rollback Hata:", err));
+            }
+            return res.status(403).json({ success: false, message: quotaCheck.message });
+        }
+        // ---------------------------
+
         const docUrl = req.file.path;
         const originalName = req.body.displayName || req.file.originalname || `doc_${Date.now()}`;
-        
+
         // Veritabanına JSON objesi olarak ekle
         const dateStr = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-        const mediaObj = { 
-            url: docUrl, 
-            name: originalName, 
+        const mediaObj = {
+            url: docUrl,
+            name: originalName,
             size: req.file.size || req.file.bytes, // Cloudinary bytes olarak da döndürebilir
-            date: dateStr 
+            date: dateStr
         };
         const updatedBox = await addMediaToBoxService(boxId, 'doc', mediaObj);
 
@@ -227,7 +287,7 @@ export const uploadDocController = async (req, res) => {
 export const deleteDocController = async (req, res) => {
     try {
         const { boxId } = req.params;
-        const { url } = req.body; 
+        const { url } = req.body;
 
         if (!url) {
             return res.status(400).json({ success: false, message: "Silinecek URL belirtilmedi." });
@@ -238,14 +298,14 @@ export const deleteDocController = async (req, res) => {
         try {
             const urlParts = url.split('/');
             const versionIndex = urlParts.findIndex(part => part.startsWith('v') && !isNaN(part.substring(1)));
-            
+
             let publicId = "";
             if (versionIndex !== -1 && versionIndex < urlParts.length - 1) {
                 const pathParts = urlParts.slice(versionIndex + 1);
                 publicId = pathParts.join('/');
-                
+
                 // Doc (Raw) dosyalarında uzantı publicId'ye dahildir!
-                
+
                 // Dosya boyutunu öğren (Raw'lar Cloudinary'de raw tipindedir)
                 const resource = await cloudinary.api.resource(publicId, { resource_type: "raw" });
                 if (resource && resource.bytes) {
@@ -256,7 +316,7 @@ export const deleteDocController = async (req, res) => {
             } else {
                 console.error("Geçersiz doc URL formatı:", url);
             }
-            
+
         } catch (cloudinaryError) {
             console.error("Cloudinary'den doc silinirken hata oldu:", cloudinaryError);
         }

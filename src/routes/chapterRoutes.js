@@ -36,9 +36,7 @@ router.put("/:id", validateChapter, updateChapter);
 // Chapter silme (DELETE)
 router.delete("/:id", deleteChapter);
 
-// ===================================
-// KUTU BAĞLAMA İŞLEMLERİ (Many-to-Many)
-// ===================================
+// --- KUTU BAĞLAMA İŞLEMLERİ (Many-to-Many) ---
 // Kutu ekle
 router.post("/:id/boxes", addBoxToChapter);
 // Kutu çıkar

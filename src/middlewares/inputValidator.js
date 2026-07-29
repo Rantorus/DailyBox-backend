@@ -40,9 +40,7 @@ export const validateLogin = (req, res, next) => {
     next();
 };
 
-// ==========================================
-// CHAPTER VALIDASYONU
-// ==========================================
+// --- CHAPTER VALIDASYONU ---
 const chapterScheme = Joi.object({
     title: Joi.string().min(2).max(100).required(), // Başlık zorunlu ve en az 2 karakter olmalı
     description: Joi.string().max(500).optional(),
@@ -62,9 +60,7 @@ export const validateChapter = (req, res, next) => {
     next();
 };
 
-// ==========================================
-// BOX VALIDASYONU (MANY-TO-MANY MİMARİSİ)
-// ==========================================
+// --- BOX VALIDASYONU (MANY-TO-MANY MİMARİSİ) ---
 const boxScheme = Joi.object({
     title: Joi.string().min(2).max(150).required(),
     date: Joi.date().iso().required(), // Frontend'den "2023-11-25T10:00:00Z" gibi gelecek
@@ -132,9 +128,7 @@ export const validateBoxUpdate = (req, res, next) => {
     next();
 };
 
-// ==========================================
-// TODO VALIDASYONU
-// ==========================================
+// --- TODO VALIDASYONU ---
 const todoScheme = Joi.object({
     text: Joi.string().min(1).max(500).required(),
     isCompleted: Joi.boolean().optional(),
@@ -165,9 +159,7 @@ export const validateTodoUpdate = (req, res, next) => {
     next();
 };
 
-// ==========================================
-// MEDIA VALIDASYONU
-// ==========================================
+// --- MEDIA VALIDASYONU ---
 const mediaDeleteScheme = Joi.object({
     mediaUrl: Joi.string().uri().required(),
     mediaType: Joi.string().valid("photo", "audio", "doc").required()

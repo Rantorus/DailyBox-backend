@@ -85,7 +85,7 @@ export const deleteUserService = async (id) => {
 // Kullanıcının kutularında (DailyBox) kullandığı tüm medyaları (audio, photo, doc) tek seferde toplu olarak getirir.
 export const getUserMediaBoxesService = async (userId) => {
     const result = await pool.query(
-        "SELECT * FROM boxes WHERE user_id = $1 AND (photo IS NOT NULL OR audio IS NOT NULL OR document IS NOT NULL)",
+        "SELECT * FROM boxes WHERE user_id = $1",
         [userId]
     );
     return result.rows;

@@ -7,9 +7,7 @@ const handleResponse = (res, status, message, data = null) => {
     });
 };
 
-// ==========================================
-// 1. KULLANICININ KENDİ CONTACTLARINI GETİR (GET)
-// ==========================================
+// --- 1. KULLANICININ KENDİ CONTACTLARINI GETİR (GET) ---
 export const getContacts = async (req, res, next) => {
     try {
         // MANTIK: Veritabanına gidip "SELECT * FROM contacts WHERE user_id = req.user.id" diyoruz.
@@ -22,9 +20,7 @@ export const getContacts = async (req, res, next) => {
     }
 };
 
-// ==========================================
-// 2. YENİ BİR CONTACT EKLE (POST)
-// ==========================================
+// --- 2. YENİ BİR CONTACT EKLE (POST) ---
 export const createContact = async (req, res, next) => {
     try {
         const { name, phone } = req.body;
@@ -39,9 +35,7 @@ export const createContact = async (req, res, next) => {
     }
 };
 
-// ==========================================
-// 3. CONTACT GÜNCELLE (PUT)
-// ==========================================
+// --- 3. CONTACT GÜNCELLE (PUT) ---
 export const updateContact = async (req, res, next) => {
     try {
         const contactId = req.params.id;
@@ -67,9 +61,7 @@ export const updateContact = async (req, res, next) => {
     }
 };
 
-// ==========================================
-// 4. CONTACT SİL (DELETE)
-// ==========================================
+// --- 4. CONTACT SİL (DELETE) ---
 export const deleteContact = async (req, res, next) => {
     try {
         const contactId = req.params.id;

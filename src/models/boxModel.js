@@ -18,9 +18,7 @@ export const getBoxesByUserIdService = async (userId) => {
     return result.rows;
 }
 
-// ========================================================
-// MANY-TO-MANY (CHAPTER - BOX) İLİŞKİ SERVİSLERİ
-// ========================================================
+// --- MANY-TO-MANY (CHAPTER - BOX) İLİŞKİ SERVİSLERİ ---
 
 // Belirli bir Chapter (Bölüm) altındaki tüm kutuları çeker (JOIN kullanarak)
 export const getBoxesByChapterIdService = async (chapterId) => {
@@ -67,9 +65,7 @@ export const checkBoxInChapterService = async (chapterId, boxId) => {
     return result.rows.length > 0;
 }
 
-// ========================================================
-// TEMEL CRUD İŞLEMLERİ (DEVAMI)
-// ========================================================
+// --- TEMEL CRUD İŞLEMLERİ (DEVAMI) ---
 
 // Veritabanına yeni bir kutu ekler (POST)
 export const createBoxService = async (boxData) => {
@@ -175,9 +171,7 @@ export const deleteBoxService = async (id) => {
     return result.rows[0];
 };
 
-// ===================================
-// MEDYA YÖNETİMİ (ARRAY GÜNCELLEMELERİ)
-// ===================================
+// --- MEDYA YÖNETİMİ (ARRAY GÜNCELLEMELERİ) ---
 
 // Kutuya resim, ses veya belge objesi ekleme (JSONB)
 export const addMediaToBoxService = async (boxId, mediaType, mediaObj) => {

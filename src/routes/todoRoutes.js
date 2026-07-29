@@ -14,9 +14,7 @@ const router = express.Router();
 // Bütün Todo işlemleri için kullanıcı girişi (token) şartı
 router.use(validateToken);
 
-// ===================================
-// TEMEL CRUD İŞLEMLERİ
-// ===================================
+// --- TEMEL CRUD İŞLEMLERİ ---
 
 // Bir kutuya ait todoları getir
 router.get("/box/:boxId", getBoxTodos);
@@ -30,9 +28,7 @@ router.patch("/:id", validateTodoUpdate, updateTodo);
 // Bir todoyu sil
 router.delete("/:id", deleteTodo);
 
-// ===================================
-// EKSTRA İŞLEMLER
-// ===================================
+// --- EKSTRA İŞLEMLER ---
 
 // Todoların sırasını güncelle (Sürükle-Bırak için)
 router.patch("/box/reorder", reorderTodos);

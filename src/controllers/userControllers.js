@@ -1,4 +1,4 @@
-import { createUserService, deleteUserService, getAllUsersService, getUserByIdService, updateUserService, getUserByEmailService, getUserMediaBoxesService, setResetOtpService, clearResetOtpAndSetPasswordService, activateUserService, updateUserStorageService } from "../models/userModel.js";
+import { createUserService, deleteUserService, getAllUsersService, getUserByIdService, updateUserService, getUserByEmailService, getUserMediaBoxesService, setResetOtpService, clearResetOtpAndSetPasswordService, activateUserService, updateUserStorageService, getTotalUserStorageService } from "../models/userModel.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import cloudinary from "../config/cloudinaryConfig.js";
@@ -10,6 +10,37 @@ const handleResponse = (res, status, message, data = null) => {
         message,
         data,
     });
+};
+
+const MAX_PERSONAL_LIMIT_BYTES = 100 * 1024 * 1024; // 100 MB
+const MAX_GLOBAL_LIMIT_BYTES = 2300 * 1024 * 1024; // 2.3 GB
+
+// --- KESİN KOTA KONTROLÜ (UPLOAD SONRASI / DB ÖNCESİ) ---
+const enforceExactQuota = async (userId, file, deletedBytes = 0) => {
+    if (!file) return { valid: true };
+    const fileSize = file.bytes || file.size || 0;
+    if (fileSize === 0) return { valid: true };
+
+    const user = await getUserByIdService(userId);
+    if (!user) return { valid: false, message: "Kullanıcı bulunamadı." };
+
+    if (user.role === 'admin') return { valid: true };
+
+    const currentUsed = parseInt(user.storage_used || 0, 10);
+    const globalUsed = parseInt(await getTotalUserStorageService() || 0, 10);
+
+    // Kalan = (Mevcut Kullanım - Silinen Eski Dosya) + Yeni Dosya
+    const netBytes = fileSize - deletedBytes;
+
+    if (currentUsed + netBytes > MAX_PERSONAL_LIMIT_BYTES) {
+        return { valid: false, message: "You have exceeded your personal storage limit (100 MB)." };
+    }
+
+    if (globalUsed + netBytes > MAX_GLOBAL_LIMIT_BYTES) {
+        return { valid: false, message: "Free server storage is full (2.3 GB)." };
+    }
+
+    return { valid: true };
 };
 
 // Yeni bir kullanıcı kaydetme (Register)
@@ -306,6 +337,16 @@ export const uploadAvatarController = async (req, res, next) => {
             }
         }
 
+        // --- ENFORCE EXACT QUOTA ---
+        const quotaCheck = await enforceExactQuota(userId, req.file, deletedBytes);
+        if (!quotaCheck.valid) {
+            if (req.file.filename) {
+                await cloudinary.uploader.destroy(req.file.filename).catch(err => console.error("Cloudinary Rollback Hata:", err));
+            }
+            return handleResponse(res, 403, quotaCheck.message);
+        }
+        // ---------------------------
+
         // 2. Veritabanındaki kullanıcıyı güncelle
         const updatedUser = await updateUserService(userId, { avatar: avatarUrl });
         if (!updatedUser) {
@@ -443,6 +484,35 @@ export const resetPassword = async (req, res, next) => {
         await clearResetOtpAndSetPasswordService(email, hashedPassword);
 
         return handleResponse(res, 200, "Your password has been reset successfully. You can login with your new password.");
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Storage Stats (Media Usage Limits için)
+export const getStorageStats = async (req, res, next) => {
+    try {
+        const userId = req.user.id;
+        
+        // Kullanıcının güncel verisini veritabanından çek (token eski kalmış olabilir)
+        const currentUser = await getUserByIdService(userId);
+        if (!currentUser) {
+            return handleResponse(res, 404, "User not found.");
+        }
+
+        const personalUsedBytes = parseInt(currentUser.storage_used || 0, 10);
+        
+        // Eğer role admin ise, global kullanımı da çek
+        let globalUsedBytes = 0;
+        if (currentUser.role === 'admin') {
+            globalUsedBytes = parseInt(await getTotalUserStorageService() || 0, 10);
+        }
+
+        return handleResponse(res, 200, "Storage stats retrieved successfully.", {
+            personalUsedBytes,
+            globalUsedBytes,
+            role: currentUser.role
+        });
     } catch (error) {
         next(error);
     }
