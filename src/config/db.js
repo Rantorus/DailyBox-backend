@@ -29,11 +29,9 @@ const ensureSchema = async () => {
     try {
         await pool.query(`
             ALTER TABLE boxes 
+            ADD COLUMN IF NOT EXISTS has_reminder BOOLEAN DEFAULT FALSE,
+            ADD COLUMN IF NOT EXISTS reminder_date TIMESTAMP,
             ADD COLUMN IF NOT EXISTS reminder_time VARCHAR(10)
-        `);
-        await pool.query(`
-            ALTER TABLE boxes 
-            ADD COLUMN IF NOT EXISTS is_reminder_alarm BOOLEAN DEFAULT FALSE
         `);
         await pool.query(`
             ALTER TABLE users 

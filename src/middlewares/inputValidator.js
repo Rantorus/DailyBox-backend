@@ -85,7 +85,7 @@ const boxScheme = Joi.object({
     hasReminder: Joi.boolean().optional(),
     reminderDate: Joi.date().iso().optional().allow(null, ''),
     reminderTime: Joi.string().optional().allow(null, ''),
-    isReminderAlarm: Joi.boolean().optional(),
+
     reminderTitle: Joi.string().optional().allow(null, ''),
     isReminded: Joi.boolean().optional(),
     
